@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ICEMemory</title>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome-->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Tailwind Config for Premium Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            1: '#D6D4C9', // Soft Secret (Base background)
+                            2: '#9D9F97', // Wet Pavement (Borders, inactive, secondary text)
+                            3: '#697F93', // Blue Prince (Accents, active states)
+                            4: '#415365', // Into the Stratosphere (Primary text, sub-headers)
+                            5: '#1E262F'  // Black Pearl (Sidebar, Primary buttons, strong headers)
+                        }
+                    },
+                    boxShadow: {
+                        'premium': '0 4px 6px -1px rgba(30, 38, 47, 0.05), 0 2px 4px -1px rgba(30, 38, 47, 0.03)',
+                        'premium-hover': '0 10px 15px -3px rgba(30, 38, 47, 0.08), 0 4px 6px -2px rgba(30, 38, 47, 0.04)',
+                        'dropdown': '0 20px 25px -5px rgba(30, 38, 47, 0.15), 0 8px 10px -6px rgba(30, 38, 47, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #EFEFEA;
+            color: #415365;
+            -webkit-font-smoothing: antialiased;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* 自訂滾動條 (沉穩風格) */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(157, 159, 151, 0.4); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(105, 127, 147, 0.8); }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+
+        /* 高級感卡片基底 */
+        .card-panel {
+            background: #FFFFFF;
+            border: 1px solid rgba(157, 159, 151, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(30, 38, 47, 0.05), 0 2px 4px -1px rgba(30, 38, 47, 0.03);
+            border-radius: 1rem;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body>
+    <div id="root" class="w-full h-[100dvh]"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- 優化 1：擴充至 10 大分類 ---
+        const CATEGORIES = [
+            { id: 'rice', icon: 'fa-solid fa-bowl-rice', name: '飯類' },
+            { id: 'noodle', icon: 'fa-solid fa-bowl-food', name: '麵類' },
+            { id: 'fastfood', icon: 'fa-solid fa-burger', name: '速食/炸物' }, // 新增：解決麥當勞痛點
+            { id: 'healthy', icon: 'fa-solid fa-seedling', name: '健康/輕食' }, // 新增：解決水煮餐痛點
+            { id: 'tea', icon: 'fa-solid fa-leaf', name: '純茶' },
+            { id: 'milktea', icon: 'fa-solid fa-glass-water', name: '奶茶' },
+            { id: 'addon', icon: 'fa-solid fa-mug-hot', name: '加料飲品', isAddon: true },
+            { id: 'coffee', icon: 'fa-solid fa-mug-saucer', name: '咖啡' },
+            { id: 'dumpling', icon: 'fa-solid fa-utensils', name: '水餃點心' },
+            { id: 'other', icon: 'fa-solid fa-box-open', name: '其他/異國' },
+        ];
+
+        // 支援 10 種顏色的圓餅圖調色盤
+        const CHART_COLORS = ['#697F93', '#415365', '#9D9F97', '#1E262F', '#D6D4C9', '#8C9B90', '#B5AFA1', '#5B6973', '#4A5862', '#2C363F'];
+
+        // --- LocalStorage Hook ---
+        function useLocalStorage(key, initialValue) {
+            const [storedValue, setStoredValue] = useState(() => {
+                try {
+                    const item = window.localStorage.getItem(key);
+                    return item ? JSON.parse(item) : initialValue;
+                } catch (error) { return initialValue; }
+            });
+            const setValue = (value) => {
+                try {
+                    const valueToStore = value instanceof Function ? value(storedValue) : value;
+                    setStoredValue(valueToStore);
+                    window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                } catch (error) { console.error(error); }
+            };
+            return [storedValue, setValue];
+        }
+
+        // --- Chart.js 元件 ---
+        function PieChart({ catStats }) {
+            const canvasRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                if (chartInstance.current) chartInstance.current.destroy();
+                const ctx = canvasRef.current.getContext('2d');
+                const labels = Object.keys(catStats).map(id => CATEGORIES.find(c => c.id === id)?.name || id);
+                const data = Object.values(catStats);
+
+                chartInstance.current = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data,
+                            backgroundColor: CHART_COLORS.slice(0, data.length),
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { backgroundColor: '#1E262F', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 }
+                        }
+                    }
+                });
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+            }, [catStats]);
+
+            return <div className="w-full h-48 relative"><canvas ref={canvasRef}></canvas></div>;
+        }
+
+        // --- 月份切換器元件 ---
+        function MonthNavigator({ viewMonth, onPrev, onNext }) {
+            const year = viewMonth.getFullYear();
+            const month = viewMonth.getMonth() + 1;
+            return (
+                <div className="flex items-center justify-between card-panel px-4 py-3 mb-6 w-full max-w-sm mx-auto md:mx-0">
+                    <button onClick={onPrev} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-left text-sm"></i></button>
+                    <span className="font-bold text-brand-5 text-base flex items-center gap-2"><i className="fa-regular fa-calendar text-brand-3"></i> {year} 年 {month} 月</span>
+                    <button onClick={onNext} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-right text-sm"></i></button>
+                </div>
+            )
+        }
+
+        // --- 編輯紀錄 Modal ---
+        function EditModal({ record, onClose, onSave }) {
+            const [name, setName] = useState(record.name);
+            const [price, setPrice] = useState(record.price);
+            const [categoryId, setCategoryId] = useState(record.categoryId);
+            const [payer, setPayer] = useState(record.payer || '');
+            const [memo, setMemo] = useState(record.memo || '');
+            const [rating, setRating] = useState(record.rating || 0);
+
+            const [recordDate, setRecordDate] = useState(() => {
+                const d = new Date(record.date);
+                return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+            });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if(!name || !price) return;
+
+                let newTimestamp = record.date;
+                const originalDateStr = new Date(new Date(record.date).getTime() - new Date(record.date).getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
+                if (recordDate !== originalDateStr) {
+                     newTimestamp = new Date(recordDate).getTime() + (12 * 60 * 60 * 1000);
+                }
+
+                onSave({
+                    ...record,
+                    name: name.trim(),
+                    price: Number(price),
+                    categoryId,
+                    payer: payer.trim() || null,
+                    isPaid: payer.trim() ? (record.payer === payer.trim() ? record.isPaid : false) : true,
+                    memo: memo.trim(),
+                    rating,
+                    date: newTimestamp
+                });
+            };
+
+            return (
+                <div className="fixed inset-0 bg-brand-5/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="px-6 py-4 border-b border-brand-1/50 flex justify-between items-center bg-[#FAF7F2]">
+                            <h3 className="font-bold text-brand-5"><i className="fa-solid fa-pen-to-square mr-2 text-brand-3"></i>編輯紀錄</h3>
+                            <button onClick={onClose} className="text-brand-2 hover:text-brand-5 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                            <form id="editForm" onSubmit={handleSubmit} className="flex flex-col gap-5">
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-brand-4 mb-2">消費日期</label>
+                                    <input type="date" value={recordDate} onChange={e => setRecordDate(e.target.value)} required className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all cursor-pointer" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-brand-4 mb-2">分類</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {CATEGORIES.map(cat => (
+                                            <button type="button" key={cat.id} onClick={() => setCategoryId(cat.id)}
+                                                className={`px-3 py-2 rounded-xl text-xs font-medium transition-all border ${categoryId === cat.id ? 'bg-brand-5 text-white border-brand-5' : 'bg-white text-brand-4 border-brand-2/20 hover:border-brand-3'}`}>
+                                                <i className={`${cat.icon} mr-1.5`}></i>{cat.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-brand-4 mb-2">品項名稱</label>
+                                        <input type="text" required value={name} onChange={e => setName(e.target.value)} className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all" />
+                                    </div>
+                                    <div className="w-32 shrink-0">
+                                        <label className="block text-xs font-semibold text-brand-4 mb-2">金額</label>
+                                        <input type="number" required min="0" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all font-bold" />
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-brand-1/50 pt-5 mt-2">
+                                    <label className="block text-xs font-semibold text-[#A56B5D] mb-2"><i className="fa-solid fa-user-group mr-1.5"></i>代墊人</label>
+                                    <input type="text" value={payer} onChange={e => setPayer(e.target.value)} placeholder="同事名字" className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-brand-4 mb-2">備註與評價</label>
+                                    <div className="flex gap-2">
+                                        <input type="text" value={memo} onChange={e => setMemo(e.target.value)} placeholder="例：微糖少冰" className="flex-1 bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all" />
+                                        <button type="button" onClick={()=>setRating(rating===1?0:1)} className={`w-11 rounded-xl border transition-all text-sm flex items-center justify-center ${rating===1?'bg-brand-5 text-white border-brand-5':'bg-white text-brand-2 border-brand-2/40 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-up"></i></button>
+                                        <button type="button" onClick={()=>setRating(rating===-1?0:-1)} className={`w-11 rounded-xl border transition-all text-sm flex items-center justify-center ${rating===-1?'bg-brand-5 text-white border-brand-5':'bg-white text-brand-2 border-brand-2/40 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-down"></i></button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-brand-1/50 flex justify-end gap-3 bg-brand-1/10">
+                            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-brand-4 hover:bg-brand-2/20 transition-colors">取消</button>
+                            <button type="submit" form="editForm" className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-brand-5 text-white hover:bg-brand-4 transition-colors shadow-sm">儲存變更</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- 主程式 App ---
+        function App() {
+            const [records, setRecords] = useLocalStorage('icememory_records', []);
+            const [budget, setBudget] = useLocalStorage('icememory_budget', 5000);
+            const [quota, setQuota] = useLocalStorage('icememory_quota', 2);
+            const [activeTab, setActiveTab] = useState('add');
+
+            const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+            const handlePrevMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1));
+            const handleNextMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1));
+
+            const today = new Date();
+            const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+            const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1))).setHours(0,0,0,0);
+
+            const startOfViewMonth = viewMonth.getTime();
+            const endOfViewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+
+            const todayTotal = records.filter(r => r.date >= startOfToday).reduce((sum, r) => sum + Number(r.price), 0);
+            const viewMonthRecords = records.filter(r => r.date >= startOfViewMonth && r.date <= endOfViewMonth);
+            const viewMonthTotal = viewMonthRecords.reduce((sum, r) => sum + Number(r.price), 0);
+            const addonThisWeek = records.filter(r => r.date >= startOfWeek && CATEGORIES.find(c => c.id === r.categoryId)?.isAddon).length;
+
+            const debts = records.filter(r => r.payer && !r.isPaid);
+            const debtsByPerson = debts.reduce((acc, curr) => {
+                if(!acc[curr.payer]) acc[curr.payer] = { total: 0, items: [], ids: [] };
+                acc[curr.payer].total += Number(curr.price);
+                acc[curr.payer].items.push(curr.name);
+                acc[curr.payer].ids.push(curr.id);
+                return acc;
+            }, {});
+
+            const payDebt = (payerName) => {
+                const idsToPay = debtsByPerson[payerName].ids;
+                setRecords(records.map(r => idsToPay.includes(r.id) ? { ...r, isPaid: true } : r));
+            };
+
+            const deleteRecord = (id) => {
+                if(window.confirm('確定要刪除這筆紀錄嗎？')) setRecords(records.filter(r => r.id !== id));
+            };
+
+            const updateRecord = (updatedRecord) => {
+                setRecords(records.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+            };
+
+            return (
+                <div className="flex h-full w-full">
+
+                    {/* --- 桌機版：左側固定選單 (Sidebar) - Premium Style --- */}
+                    <aside className="hidden md:flex flex-col w-64 bg-brand-5 text-brand-1 shadow-2xl z-20">
+                        <div className="p-8 pb-6">
+                            <h1 className="text-2xl font-bold text-white flex items-center gap-3 mb-1 tracking-wide">
+                                <i className="fa-solid fa-snowflake text-brand-3 text-2xl"></i>
+                                ICEMemory
+                            </h1>
+                        </div>
+
+                        <nav className="flex-1 px-4 space-y-2 mt-4">
+                            <SidebarBtn icon="fa-plus" label="記一筆" active={activeTab === 'add'} onClick={() => setActiveTab('add')} isPrimary/>
+                            <div className="h-6 border-b border-brand-4/40 mx-4 mb-6"></div>
+                            <SidebarBtn icon="fa-border-all" label="總覽儀表板" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
+                            <SidebarBtn icon="fa-file-invoice" label="歷史與報表" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
+                            <SidebarBtn icon="fa-sliders" label="系統設定" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                        </nav>
+
+                        <div className="p-6 text-center text-[10px] text-brand-2 tracking-widest uppercase">
+                            Workspace
+                        </div>
+                    </aside>
+
+                    {/* --- 主要內容區 (Main Content) --- */}
+                    <main className="flex-1 flex flex-col relative w-full h-full overflow-hidden">
+
+                        {/* 手機版：頂部 Header */}
+                        <header className="md:hidden px-6 pt-8 pb-4 flex justify-between items-center z-10 shrink-0 bg-white border-b border-brand-2/20 shadow-sm">
+                            <h1 className="text-xl font-bold text-brand-5 flex items-center gap-2">
+                                <i className="fa-solid fa-snowflake text-brand-3"></i> ICEMemory
+                            </h1>
+                        </header>
+
+                        {/* 視圖內容 */}
+                        <div className="flex-1 overflow-y-auto p-4 md:p-10 pb-28 md:pb-10 z-10">
+                            <div className="max-w-6xl mx-auto h-full">
+                                {activeTab === 'dash' && <DashboardView
+                                    todayTotal={todayTotal} viewMonthTotal={viewMonthTotal} budget={budget} quota={quota}
+                                    addonThisWeek={addonThisWeek} debtsByPerson={debtsByPerson} payDebt={payDebt}
+                                    viewMonth={viewMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth}
+                                />}
+                                {activeTab === 'add' && <AddView records={records} setRecords={setRecords} setActiveTab={setActiveTab} />}
+                                {activeTab === 'history' && <HistoryView
+                                    viewMonthRecords={viewMonthRecords}
+                                    deleteRecord={deleteRecord}
+                                    updateRecord={updateRecord}
+                                    viewMonth={viewMonth}
+                                    onPrevMonth={handlePrevMonth}
+                                    onNextMonth={handleNextMonth}
+                                />}
+                                {activeTab === 'settings' && <SettingsView budget={budget} setBudget={setBudget} quota={quota} setQuota={setQuota} records={records} setRecords={setRecords} />}
+                            </div>
+                        </div>
+
+                        {/* 手機版：底部浮動導覽列 */}
+                        <nav className="md:hidden absolute bottom-0 w-full h-[72px] bg-white border-t border-brand-2/20 flex justify-around items-center px-2 z-20 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
+                            <MobileNavBtn icon="fa-border-all" label="總覽" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
+                            <button onClick={() => setActiveTab('add')} className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg transform transition-all ${activeTab === 'add' ? 'bg-brand-5 text-white shadow-md scale-105' : 'bg-brand-1 text-brand-5 hover:bg-brand-2/30'}`} style={{ marginTop: '-16px' }}>
+                                <i className="fa-solid fa-plus"></i>
+                            </button>
+                            <MobileNavBtn icon="fa-file-invoice" label="紀錄" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
+                            <MobileNavBtn icon="fa-sliders" label="設定" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                        </nav>
+                    </main>
+                </div>
+            );
+        }
+
+        // --- 桌機側邊欄按鈕 (Premium) ---
+        function SidebarBtn({ icon, label, active, onClick, isPrimary }) {
+            if (isPrimary) {
+                return (
+                    <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${active ? 'bg-brand-3 text-white shadow-md' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                        <i className={`fa-solid ${icon} text-base w-5 text-center`}></i> <span className="text-sm">{label}</span>
+                    </button>
+                )
+            }
+            return (
+                <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all ${active ? 'bg-brand-4/50 text-white border-l-4 border-brand-3 rounded-l-sm' : 'text-brand-2 hover:bg-brand-4/30 hover:text-white border-l-4 border-transparent'}`}>
+                    <i className={`fa-solid ${icon} text-base w-5 text-center ${active ? 'text-brand-3' : ''}`}></i> <span className="text-sm">{label}</span>
+                </button>
+            );
+        }
+
+        // --- 手機底部按鈕 ---
+        function MobileNavBtn({ icon, label, active, onClick }) {
+            return (
+                <button onClick={onClick} className={`flex flex-col items-center gap-1 w-14 transition-all pt-1 ${active ? 'text-brand-5' : 'text-brand-2'}`}>
+                    <i className={`fa-solid ${icon} text-xl mb-0.5`}></i>
+                    <span className="text-[10px] font-medium">{label}</span>
+                </button>
+            );
+        }
+
+        // ==========================================
+        // 1. 新增頁面 (Add View) - Ninja 極速輸入 & 無腦點餐小抄 & 介面攤平
+        // ==========================================
+        function AddView({ records, setRecords, setActiveTab }) {
+            const [name, setName] = useState('');
+            const [price, setPrice] = useState('');
+            const [categoryId, setCategoryId] = useState('rice');
+            const [payer, setPayer] = useState('');
+            const [memo, setMemo] = useState('');
+            const [rating, setRating] = useState(0);
+
+            const [isNameFocused, setIsNameFocused] = useState(false);
+            const [recordDate, setRecordDate] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
+
+            const nameInputRef = useRef(null);
+            const priceInputRef = useRef(null);
+
+            useEffect(() => { if(window.innerWidth > 768 && nameInputRef.current) nameInputRef.current.focus(); }, []);
+
+            const setDateOffset = (days) => {
+                const d = new Date(); d.setDate(d.getDate() + days);
+                setRecordDate(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]);
+            }
+
+            const recentPayers = useMemo(() => {
+                const payers = records.map(r => r.payer).filter(Boolean);
+                const counts = {};
+                payers.forEach(p => counts[p] = (counts[p] || 0) + 1);
+                return Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 4);
+            }, [records]);
+
+            // --- 優化 2：無腦點餐小抄 (下拉選單邏輯) ---
+            const suggestions = useMemo(() => {
+                // 修改：如果沒有輸入任何字，就回傳空陣列 (不顯示下拉選單)
+                if (name.trim() === '') return [];
+
+                const uniqueItems = [];
+                const seenNames = new Set();
+
+                // 從最新紀錄開始找，保留最近且不重複的品項
+                for (let i = records.length - 1; i >= 0; i--) {
+                    const r = records[i];
+                    if (!seenNames.has(r.name)) {
+                        // 只要有包含關鍵字就抓出來
+                        if (r.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(r.name.toLowerCase())) {
+                            uniqueItems.push(r);
+                            seenNames.add(r.name);
+                        }
+                    }
+                    if (uniqueItems.length >= 6) break; // 最多顯示 6 筆小抄
+                }
+                return uniqueItems;
+            }, [name, records]);
+
+            const applySuggestion = (s) => {
+                setName(s.name);
+                setPrice(s.price);
+                setCategoryId(s.categoryId);
+                if(s.memo) setMemo(s.memo);
+                setIsNameFocused(false); // 關閉下拉選單
+                if(priceInputRef.current) priceInputRef.current.focus(); // 帶入後游標跳至金額
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+
+                let finalName = name.trim();
+                let finalPrice = price;
+
+                // Ninja 極速輸入法
+                if (!finalPrice) {
+                    const match = finalName.match(/^(.+?)\s+(\d+)$/);
+                    if (match) {
+                        finalName = match[1].trim();
+                        finalPrice = match[2];
+                    } else {
+                        if (priceInputRef.current) priceInputRef.current.focus();
+                        return;
+                    }
+                }
+
+                if(!finalName || !finalPrice) return;
+
+                const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                let recordTimestamp = Date.now();
+                if (recordDate !== todayStr) {
+                    recordTimestamp = new Date(recordDate).getTime() + (12 * 60 * 60 * 1000);
+                }
+
+                setRecords([...records, {
+                    id: Date.now().toString(), date: recordTimestamp, name: finalName, price: Number(finalPrice), categoryId,
+                    payer: payer.trim() || null, isPaid: payer.trim() ? false : true, memo: memo.trim(), rating
+                }]);
+
+                setName(''); setPrice(''); setPayer(''); setMemo(''); setRating(0);
+                setActiveTab('dash');
+            };
+
+            return (
+                <div className="w-full max-w-4xl mx-auto animate-fade-in flex flex-col gap-6 md:gap-8 pt-2 md:pt-4 pb-10">
+                    <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-2xl md:text-3xl font-bold text-brand-5 hidden md:block tracking-tight">快速記帳</h2>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-6 md:gap-8">
+
+                        {/* 日期選擇區 */}
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                            <label className="text-sm font-semibold text-brand-4 whitespace-nowrap"><i className="fa-solid fa-calendar-day mr-2 text-brand-3"></i>消費日期</label>
+                            <div className="flex flex-wrap gap-3 w-full md:w-auto items-center">
+                                <input type="date" value={recordDate} onChange={e => setRecordDate(e.target.value)} className="bg-white border border-brand-2/30 rounded-lg px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none font-medium text-sm flex-1 md:flex-none cursor-pointer shadow-sm" />
+                                <div className="flex gap-2 border border-brand-2/30 rounded-lg p-1 bg-white shadow-sm">
+                                    <button type="button" onClick={() => setDateOffset(0)} className="text-xs text-brand-4 hover:bg-brand-1 px-3 py-1.5 rounded-md font-medium transition-colors">今天</button>
+                                    <div className="w-px bg-brand-2/30 my-1"></div>
+                                    <button type="button" onClick={() => setDateOffset(-1)} className="text-xs text-brand-4 hover:bg-brand-1 px-3 py-1.5 rounded-md font-medium transition-colors">昨天</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 分類按鈕 (10 大分類) */}
+                        <div className="grid grid-cols-5 md:flex md:flex-wrap md:gap-3 gap-2">
+                            {CATEGORIES.map(cat => (
+                                <button type="button" key={cat.id} onClick={() => { setCategoryId(cat.id); if(window.innerWidth > 768 && nameInputRef.current) nameInputRef.current.focus(); }}
+                                    className={`flex md:flex-row flex-col items-center justify-center md:px-5 md:py-3 py-3 px-1 rounded-xl transition-all border ${categoryId === cat.id ? 'bg-brand-5 text-white border-brand-5 shadow-md' : 'bg-white text-brand-4 border-brand-2/20 hover:border-brand-3 hover:text-brand-3'}`}>
+                                    <i className={`${cat.icon} text-xl md:text-base md:mr-2`}></i>
+                                    <span className="text-[10px] md:text-sm font-medium mt-1.5 md:mt-0 whitespace-nowrap">{cat.name}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* 攤平的統一輸入卡片 */}
+                        <div className="card-panel p-6 md:p-8 flex flex-col gap-6 md:gap-8 relative z-20">
+
+                            {/* 第一排：品項與金額 */}
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start relative">
+                                <div className="flex-1 w-full relative">
+                                    <div className="flex justify-between items-end mb-2">
+                                        <label className="block text-xs font-semibold text-brand-4">品項名稱</label>
+                                        <span className="text-[10px] text-brand-3/80 font-medium hidden md:inline-block"><i className="fa-solid fa-bolt text-yellow-500 mr-1"></i>Ninja 極速支援：品項 空格 金額 (例: 麥當勞 150)</span>
+                                    </div>
+                                    <input
+                                        ref={nameInputRef}
+                                        type="text" required
+                                        value={name}
+                                        onChange={e => setName(e.target.value)}
+                                        onFocus={() => setIsNameFocused(true)}
+                                        onBlur={() => setTimeout(() => setIsNameFocused(false), 200)} // 延遲關閉，讓點擊選項的事件能觸發
+                                        placeholder="例：麥當勞 150 (直接輸入品項+空格+金額)"
+                                        className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-3.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 font-medium transition-all"
+                                    />
+
+                                    {/* 無腦點餐小抄 Dropdown */}
+                                    {isNameFocused && name.trim() !== '' && suggestions.length > 0 && (
+                                        <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-brand-5 border border-brand-5 rounded-xl shadow-dropdown z-50 overflow-hidden animate-fade-in flex flex-col max-h-64">
+                                            <div className="text-[10px] text-brand-2 uppercase tracking-widest px-4 py-2 border-b border-brand-4/50 bg-[#151B21]">
+                                                💡 歷史點餐小抄
+                                            </div>
+                                            <div className="overflow-y-auto custom-scrollbar">
+                                                {suggestions.map((s, idx) => (
+                                                    <div key={`${s.id}-${idx}`} onClick={() => applySuggestion(s)} className="p-4 hover:bg-brand-4 cursor-pointer flex justify-between items-center border-b border-brand-4/30 last:border-0 transition-colors">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-white font-medium">{s.name}</span>
+                                                            {s.memo && <span className="text-brand-2 text-xs">({s.memo})</span>}
+                                                            {s.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-xs ml-1"></i>}
+                                                            {s.rating === -1 && <i className="fa-solid fa-thumbs-down text-[#A56B5D] text-xs ml-1"></i>}
+                                                        </div>
+                                                        <span className="text-brand-1 font-bold">${s.price}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="md:w-56 shrink-0 w-full">
+                                    <label className="block text-xs font-semibold text-brand-4 mb-2">金額 (若前方已輸入可留白)</label>
+                                    <div className="relative flex items-center">
+                                        <span className="absolute left-4 text-brand-4 font-bold text-lg">NT$</span>
+                                        <input ref={priceInputRef} type="number" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="0"
+                                            className="w-full bg-white border border-brand-2/40 rounded-xl pl-14 pr-4 py-3.5 text-lg font-bold text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 transition-all" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 第二排：攤平的代墊與備註區塊 */}
+                            <div className="flex flex-col md:flex-row gap-6 pt-6 border-t border-brand-1">
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-end mb-3">
+                                        <label className="block text-xs font-semibold text-[#A56B5D]"><i className="fa-solid fa-user-group mr-1.5 opacity-70"></i>代墊人 (選填)</label>
+                                    </div>
+
+                                    {/* 常駐代墊人 Chips */}
+                                    {recentPayers.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {recentPayers.map(p => (
+                                                <button key={p} type="button" onClick={() => setPayer(p)} className="text-xs bg-[#FAF7F2] hover:bg-[#E8E1DA] text-[#A56B5D] px-3 py-1.5 rounded-lg font-semibold transition-colors border border-[#D5C6BA] flex items-center gap-1.5 active:scale-95 shadow-sm">
+                                                    <i className="fa-solid fa-plus opacity-50 text-[10px]"></i> {p}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <input type="text" value={payer} onChange={e => setPayer(e.target.value)} placeholder="手動輸入同事名字"
+                                        className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-3 text-brand-5 focus:border-[#A56B5D] focus:ring-1 focus:ring-[#A56B5D] outline-none placeholder:text-brand-2 text-sm transition-all" />
+                                </div>
+
+                                <div className="flex-1 flex flex-col">
+                                    <label className="block text-xs font-semibold text-brand-4 mb-3"><i className="fa-solid fa-pen-to-square mr-1.5 opacity-70"></i>備註與評價 (選填)</label>
+                                    <div className="flex gap-2 h-[46px]">
+                                        <input type="text" value={memo} onChange={e => setMemo(e.target.value)} placeholder="例：微糖少冰"
+                                            className="flex-1 bg-white border border-brand-2/40 rounded-xl px-4 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 text-sm transition-all" />
+                                        <button type="button" onClick={()=>setRating(rating===1?0:1)} className={`w-[46px] shrink-0 rounded-xl border transition-all text-sm flex items-center justify-center shadow-sm ${rating===1?'bg-brand-5 text-white border-brand-5':'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-up"></i></button>
+                                        <button type="button" onClick={()=>setRating(rating===-1?0:-1)} className={`w-[46px] shrink-0 rounded-xl border transition-all text-sm flex items-center justify-center shadow-sm ${rating===-1?'bg-[#A56B5D] text-white border-[#A56B5D]':'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-[#A56B5D] hover:text-[#A56B5D]'}`}><i className="fa-solid fa-thumbs-down"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* 送出按鈕 */}
+                        <div className="pt-2 md:pt-4">
+                            <button type="submit" className="w-full md:w-auto md:min-w-[240px] md:ml-auto bg-brand-5 text-white font-semibold text-base py-4 px-8 rounded-xl shadow-premium hover:shadow-premium-hover hover:bg-brand-4 transition-all flex justify-center items-center gap-2 active:scale-[0.98]">
+                                <i className="fa-solid fa-check"></i> 儲存紀錄 (Enter)
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            );
+        }
+
+        // --- 2. 總覽儀表板 (Dashboard View) - 貼心還款複製功能 ---
+        function DashboardView({ todayTotal, viewMonthTotal, budget, quota, addonThisWeek, debtsByPerson, payDebt, viewMonth, onPrevMonth, onNextMonth }) {
+            const isOverBudget = viewMonthTotal > budget;
+            const quotaIcons = Array.from({length: Math.max(quota, addonThisWeek)}, (_, i) =>
+                <i key={i} className={`fa-solid fa-mug-hot text-2xl mx-1 ${i < addonThisWeek ? 'text-brand-2/30' : 'text-brand-3'}`} title={i < addonThisWeek ? "已喝" : "可喝"}></i>
+            );
+
+            const [copiedPerson, setCopiedPerson] = useState(null);
+
+            // 優化 4：複製還款訊息功能
+            const handleCopyMessage = (person, data) => {
+                const message = `Hi ${person}，我還欠你 $${data.total} (${data.items.join(', ')})，我等等轉給你喔！`;
+
+                // 使用跨平台兼容的複製方法
+                const textArea = document.createElement("textarea");
+                textArea.value = message;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setCopiedPerson(person);
+                    setTimeout(() => setCopiedPerson(null), 2000);
+                } catch (err) {
+                    console.error('複製失敗', err);
+                }
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="flex flex-col gap-6 animate-fade-in pb-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                        <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight">總覽儀表板</h2>
+                        <MonthNavigator viewMonth={viewMonth} onPrev={onPrevMonth} onNext={onNextMonth} />
+                    </div>
+
+                    {/* 🚨 置頂待還款區 */}
+                    {Object.keys(debtsByPerson).length > 0 && (
+                        <div className="bg-[#FAF7F2] border border-[#D5C6BA] p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                            <h3 className="text-[#A56B5D] font-bold text-sm mb-4 flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-lg"></i> 待還款提醒</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {Object.entries(debtsByPerson).map(([person, data]) => (
+                                    <div key={person} className="bg-white rounded-xl p-4 flex flex-col gap-4 shadow-sm border border-[#E8E1DA]">
+                                        <div>
+                                            <p className="font-semibold text-brand-5 text-sm">欠 {person} <span className="text-[#A56B5D] font-bold text-base ml-1">${data.total}</span></p>
+                                            <p className="text-xs text-brand-2 truncate max-w-[200px] mt-1">{data.items.join(', ')}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 w-full pt-2 border-t border-brand-1/40">
+                                            <button onClick={() => handleCopyMessage(person, data)} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors active:scale-95 flex justify-center items-center gap-1.5 border ${copiedPerson === person ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-brand-4 border-brand-2/30 hover:bg-brand-1/20'}`}>
+                                                {copiedPerson === person ? <><i className="fa-solid fa-check"></i> 已複製</> : <><i className="fa-regular fa-copy"></i> 複製訊息</>}
+                                            </button>
+                                            <button onClick={() => payDebt(person)} className="flex-1 bg-brand-5 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-4 transition-colors active:scale-95 flex justify-center items-center gap-1.5 shadow-sm">
+                                                <i className="fa-solid fa-check"></i> 標記還清
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                        <div className="card-panel p-6 flex flex-col justify-center items-start relative overflow-hidden">
+                            <i className="fa-solid fa-wallet absolute -right-6 -bottom-6 text-7xl text-brand-1 opacity-50"></i>
+                            <span className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-2">今日即時花費</span>
+                            <span className="text-4xl font-bold text-brand-5 flex items-baseline"><span className="text-xl font-normal mr-1 text-brand-2">$</span>{todayTotal}</span>
+                        </div>
+                        <div className="card-panel p-6 flex flex-col justify-center items-start relative overflow-hidden">
+                            <i className="fa-solid fa-chart-line absolute -right-6 -bottom-6 text-7xl text-brand-1 opacity-50"></i>
+                            <span className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-2">該月累積</span>
+                            <span className="text-4xl font-bold text-brand-5 flex items-baseline"><span className="text-xl font-normal mr-1 text-brand-2">$</span>{viewMonthTotal}</span>
+                        </div>
+                        <div className="card-panel p-6 flex flex-col justify-center">
+                            <div className="flex justify-between text-xs font-medium mb-3 uppercase tracking-wider">
+                                <span className="text-brand-4">預算使用率</span>
+                                <span className={isOverBudget ? 'text-[#A56B5D]' : 'text-brand-4'}>${viewMonthTotal} / ${budget}</span>
+                            </div>
+                            <div className="w-full bg-brand-1/50 rounded-full h-2.5 overflow-hidden mb-3">
+                                <div className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-[#A56B5D]' : 'bg-brand-3'}`} style={{ width: `${Math.min(100, (viewMonthTotal / budget) * 100)}%` }}></div>
+                            </div>
+                            {isOverBudget && <p className="text-[10px] text-[#A56B5D] font-bold text-right">已超支警示</p>}
+                        </div>
+                    </div>
+
+                    <div className="card-panel p-6 md:p-8 text-center flex flex-col items-center justify-center">
+                        <h3 className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-6"><i className="fa-solid fa-glass-water mr-2 opacity-70"></i>本週加料飲品額度</h3>
+                        <div className="flex justify-center flex-wrap mb-4">{quotaIcons}</div>
+                        <p className="text-xs text-brand-4 font-medium bg-brand-1/30 px-4 py-2 rounded-lg inline-block">
+                            {addonThisWeek >= quota ? '額度已用盡，為了健康請克制' : `本週剩餘 ${Math.max(0, quota - addonThisWeek)} 杯額度`}
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- 3. 歷史與報表 (History View) ---
+        function HistoryView({ viewMonthRecords, deleteRecord, updateRecord, viewMonth, onPrevMonth, onNextMonth }) {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [editingRecord, setEditingRecord] = useState(null);
+
+            const sortedRecords = [...viewMonthRecords].sort((a,b) => b.date - a.date);
+            const displayRecords = sortedRecords.filter(r =>
+                r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (r.payer && r.payer.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (r.memo && r.memo.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+
+            const catStats = viewMonthRecords.reduce((acc, curr) => { acc[curr.categoryId] = (acc[curr.categoryId] || 0) + Number(curr.price); return acc; }, {});
+            const topItems = Object.entries(viewMonthRecords.reduce((acc, curr) => { acc[curr.name] = (acc[curr.name] || 0) + 1; return acc; }, {})).sort((a,b) => b[1] - a[1]).slice(0, 3);
+
+            return (
+                <div className="flex flex-col gap-6 animate-fade-in h-full pb-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                        <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight">歷史與報表</h2>
+                        <MonthNavigator viewMonth={viewMonth} onPrev={onPrevMonth} onNext={onNextMonth} />
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row gap-6 items-start">
+                        {/* 左欄：圖表與排行榜 */}
+                        <div className="w-full lg:w-[35%] flex flex-col gap-6 sticky top-0">
+                            <div className="card-panel p-6 flex flex-col items-center w-full">
+                                <h3 className="text-sm font-semibold text-brand-5 mb-6 w-full text-left">該月花費分佈</h3>
+                                {Object.keys(catStats).length > 0 ? (
+                                    <>
+                                        <PieChart catStats={catStats} />
+                                        <div className="flex flex-col w-full gap-2 mt-6">
+                                            {Object.entries(catStats).sort((a,b)=>b[1]-a[1]).map(([catId, amount], index) => (
+                                                <div key={catId} className="flex items-center justify-between text-xs py-1.5 border-b border-brand-1/50 last:border-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                                                        <span className="text-brand-5">{CATEGORIES.find(c => c.id === catId)?.name}</span>
+                                                    </div>
+                                                    <span className="font-semibold text-brand-4">${amount}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="py-12 text-brand-2 text-sm flex flex-col items-center gap-3"><i className="fa-solid fa-chart-pie text-3xl opacity-50"></i> 尚無資料</div>
+                                )}
+                            </div>
+
+                            {topItems.length > 0 && (
+                                <div className="card-panel p-6 w-full">
+                                    <h3 className="text-sm font-semibold text-brand-5 mb-4">常客 Top 3</h3>
+                                    {topItems.map(([name, count], index) => (
+                                        <div key={name} className="flex justify-between items-center py-2.5 border-b border-brand-1/50 last:border-0">
+                                            <span className="text-sm text-brand-4"><span className="w-5 inline-block text-brand-3 font-bold">{index+1}.</span> {name}</span>
+                                            <span className="text-xs text-brand-3 font-semibold">{count} 次</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 右欄：明細列表 */}
+                        <div className="w-full lg:w-[65%] card-panel p-6">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                                <h3 className="text-sm font-semibold text-brand-5 whitespace-nowrap">該月明細</h3>
+                                <div className="relative w-full md:w-64 shrink-0">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-2"><i className="fa-solid fa-magnifying-glass text-sm"></i></span>
+                                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋品項、代墊人..." className="w-full bg-brand-1/20 border border-brand-2/30 rounded-lg pl-9 pr-8 py-2 text-brand-5 focus:border-brand-3 focus:bg-white outline-none text-sm transition-colors" />
+                                    {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-2 hover:text-brand-5"><i className="fa-solid fa-xmark"></i></button>}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                {displayRecords.length === 0 && <p className="text-center text-brand-2 text-sm py-12">沒有找到符合的紀錄</p>}
+                                {displayRecords.map(record => {
+                                    const cat = CATEGORIES.find(c => c.id === record.categoryId);
+                                    const dateStr = new Date(record.date).toLocaleDateString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
+                                    return (
+                                        <div key={record.id} className="p-3 rounded-xl flex items-center justify-between group hover:bg-brand-1/30 transition-colors border border-transparent hover:border-brand-2/20">
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-lg text-brand-3 w-10 h-10 shrink-0 rounded-lg bg-brand-1/40 flex items-center justify-center"><i className={cat?.icon}></i></div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-semibold text-brand-5 text-sm">{record.name}</p>
+                                                        {record.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-[10px]"></i>}
+                                                        {record.rating === -1 && <i className="fa-solid fa-thumbs-down text-[#A56B5D] text-[10px]"></i>}
+                                                    </div>
+                                                    <div className="text-xs text-brand-2 mt-1 flex flex-wrap gap-2 items-center">
+                                                        <span>{dateStr}</span>
+                                                        {record.payer && !record.isPaid && <span className="text-[#A56B5D] flex items-center gap-1"><i className="fa-solid fa-circle text-[6px]"></i>代墊: {record.payer}</span>}
+                                                        {record.payer && record.isPaid && <span className="text-brand-3 flex items-center gap-1"><i className="fa-solid fa-check text-[8px]"></i>已還: {record.payer}</span>}
+                                                        {record.memo && <span className="text-brand-4 flex items-center gap-1"><i className="fa-solid fa-quote-left text-[8px]"></i>{record.memo}</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <span className="font-bold text-brand-5 mr-2">${record.price}</span>
+                                                <button onClick={() => setEditingRecord(record)} className="text-brand-3 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:bg-brand-1/60 rounded-lg"><i className="fa-solid fa-pen"></i></button>
+                                                <button onClick={() => deleteRecord(record.id)} className="text-brand-2 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:text-[#A56B5D] hover:bg-[#FDF3F3] rounded-lg"><i className="fa-solid fa-trash-can"></i></button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 呼叫編輯 Modal */}
+                    {editingRecord && (
+                        <EditModal
+                            record={editingRecord}
+                            onClose={() => setEditingRecord(null)}
+                            onSave={(updatedRecord) => {
+                                updateRecord(updatedRecord);
+                                setEditingRecord(null);
+                            }}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // --- 4. 設定頁面 (Settings View) ---
+        function SettingsView({ budget, setBudget, quota, setQuota, records, setRecords }) {
+            const handleExport = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
+                const a = document.createElement('a');
+                a.href = dataStr; a.download = "icememory_backup.json";
+                document.body.appendChild(a); a.click(); a.remove();
+            };
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if(Array.isArray(importedData)) {
+                            if(window.confirm('確定要匯入資料嗎？這會覆蓋目前的紀錄。')) { setRecords(importedData); alert('匯入成功！'); }
+                        } else alert('檔案格式錯誤');
+                    } catch (err) { alert('檔案解析失敗'); }
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div className="flex flex-col items-center h-full animate-fade-in pt-4">
+                    <div className="w-full max-w-3xl flex flex-col gap-6">
+                        <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight mb-2">系統設定</h2>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="card-panel p-6 flex flex-col justify-center">
+                                <label className="block text-sm font-semibold text-brand-4 mb-4">每月預算設定</label>
+                                <div className="relative flex items-center">
+                                    <span className="absolute left-4 text-brand-2 text-sm">NT$</span>
+                                    <input type="number" value={budget} onChange={e => setBudget(Number(e.target.value))}
+                                        className="w-full bg-brand-1/20 border border-brand-2/30 rounded-xl pl-12 pr-4 py-3 text-brand-5 font-bold focus:border-brand-3 focus:bg-white outline-none transition-colors" />
+                                </div>
+                            </div>
+
+                            <div className="card-panel p-6 flex flex-col justify-center">
+                                <label className="block text-sm font-semibold text-brand-4 mb-4">每週加料額度</label>
+                                <div className="flex items-center gap-4">
+                                    <input type="range" min="0" max="10" value={quota} onChange={e => setQuota(Number(e.target.value))} className="w-full accent-brand-5" />
+                                    <span className="font-bold text-xl text-brand-5 w-8 text-center">{quota}</span><span className="text-xs text-brand-4">杯</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div>
+                                <h3 className="text-sm font-semibold text-brand-5 mb-1">資料備份與還原</h3>
+                                <p className="text-xs text-brand-4">匯出 JSON 格式以防資料遺失</p>
+                            </div>
+                            <div className="flex gap-3 w-full md:w-auto">
+                                <button onClick={handleExport} className="flex-1 md:flex-none border border-brand-2/40 text-brand-5 font-medium py-2.5 px-5 rounded-lg hover:bg-brand-1/30 transition-colors text-sm"><i className="fa-solid fa-download mr-1.5 opacity-70"></i> 匯出備份</button>
+                                <label className="flex-1 md:flex-none bg-brand-5 text-white font-medium py-2.5 px-5 rounded-lg hover:bg-brand-4 transition-colors text-center cursor-pointer text-sm shadow-sm"><i className="fa-solid fa-upload mr-1.5 opacity-70"></i> 匯入還原<input type="file" accept=".json" onChange={handleImport} className="hidden" /></label>
+                            </div>
+                        </div>
+
+                        <div className="text-center mt-8">
+                            <button onClick={()=>{ if(window.confirm('🚨 確定要清除所有紀錄嗎？(無法復原)')) setRecords([]); }} className="text-xs text-[#A56B5D] font-medium hover:underline py-2 px-4 transition-colors"><i className="fa-solid fa-triangle-exclamation mr-1.5"></i> 刪除所有系統紀錄</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+    <style>
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    </style>
+</body>
+</html>
