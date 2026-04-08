@@ -97,7 +97,7 @@
 
         const DRINK_CATEGORIES = ['tea', 'milktea', 'addon', 'coffee'];
         const SUGAR_OPTIONS = ['正常', '少糖(7)', '半糖(5)', '微糖(3)', '一分', '無糖'];
-        const ICE_OPTIONS = ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '溫', '熱'];
+        const ICE_OPTIONS = ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '常溫', '溫', '熱'];
 
         const CHART_COLORS = ['#697F93', '#415365', '#9D9F97', '#1E262F', '#D6D4C9', '#8C9B90', '#B5AFA1', '#5B6973', '#4A5862', '#2C363F'];
 
@@ -320,6 +320,7 @@
         function App() {
             const [records, setRecords] = useLocalStorage('icememory_records', []);
             const [budget, setBudget] = useLocalStorage('icememory_budget', 5000);
+            const [budgetType, setBudgetType] = useLocalStorage('icememory_budget_type', 'monthly');
             const [quota, setQuota] = useLocalStorage('icememory_quota', 2);
             const [activeTab, setActiveTab] = useState('add');
 
@@ -327,17 +328,23 @@
             const handlePrevMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1));
             const handleNextMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1));
 
-            const today = new Date();
-            const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-            const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1))).setHours(0,0,0,0);
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+            const dayOfWeek = now.getDay();
+            const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            const startOfWeek = new Date(now.getFullYear(), now.getMonth(), diffToMonday).getTime();
 
             const startOfViewMonth = viewMonth.getTime();
             const endOfViewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
 
             const todayTotal = records.filter(r => r.date >= startOfToday).reduce((sum, r) => sum + Number(r.price), 0);
+            const thisWeekRecords = records.filter(r => r.date >= startOfWeek);
+            const thisWeekTotal = thisWeekRecords.reduce((sum, r) => sum + Number(r.price), 0);
+
             const viewMonthRecords = records.filter(r => r.date >= startOfViewMonth && r.date <= endOfViewMonth);
             const viewMonthTotal = viewMonthRecords.reduce((sum, r) => sum + Number(r.price), 0);
-            const addonThisWeek = records.filter(r => r.date >= startOfWeek && CATEGORIES.find(c => c.id === r.categoryId)?.isAddon).length;
+            const addonThisWeek = thisWeekRecords.filter(r => CATEGORIES.find(c => c.id === r.categoryId)?.isAddon).length;
 
             const debts = records.filter(r => r.payer && !r.isPaid);
             const debtsByPerson = debts.reduce((acc, curr) => {
@@ -398,18 +405,20 @@
                             </h1>
                         </header>
 
-                        {/* 視圖內容 (RWD 修復: 拔除 h-full 讓底部 padding 生效) */}
-                        <div className="flex-1 overflow-y-auto p-4 md:p-10 pb-32 md:pb-10 z-10">
+                        {/* 視圖內容 */}
+                        <div className="flex-1 overflow-y-auto p-4 md:p-10 pb-28 md:pb-10 z-10">
                             <div className="max-w-6xl mx-auto">
                                 {activeTab === 'dash' && <DashboardView
-                                    todayTotal={todayTotal} viewMonthTotal={viewMonthTotal} budget={budget} quota={quota}
+                                    todayTotal={todayTotal} viewMonthTotal={viewMonthTotal} thisWeekTotal={thisWeekTotal}
+                                    budget={budget} budgetType={budgetType} quota={quota}
                                     addonThisWeek={addonThisWeek} debtsByPerson={debtsByPerson} payDebt={payDebt}
                                     viewMonth={viewMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth}
                                 />}
                                 {/* 新增日曆 View */}
                                 {activeTab === 'calendar' && <CalendarView
                                     viewMonth={viewMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth}
-                                    records={records} deleteRecord={deleteRecord} updateRecord={updateRecord} budget={budget}
+                                    records={records} deleteRecord={deleteRecord} updateRecord={updateRecord}
+                                    budget={budget} budgetType={budgetType}
                                 />}
                                 {activeTab === 'add' && <AddView records={records} setRecords={setRecords} setActiveTab={setActiveTab} />}
                                 {activeTab === 'history' && <HistoryView
@@ -420,7 +429,12 @@
                                     onPrevMonth={handlePrevMonth}
                                     onNextMonth={handleNextMonth}
                                 />}
-                                {activeTab === 'settings' && <SettingsView budget={budget} setBudget={setBudget} quota={quota} setQuota={setQuota} records={records} setRecords={setRecords} />}
+                                {activeTab === 'settings' && <SettingsView
+                                    budget={budget} setBudget={setBudget}
+                                    budgetType={budgetType} setBudgetType={setBudgetType}
+                                    quota={quota} setQuota={setQuota}
+                                    records={records} setRecords={setRecords}
+                                />}
                             </div>
                         </div>
 
@@ -724,7 +738,7 @@
 
                         {/* 送出按鈕 */}
                         <div className="pt-2 md:pt-4">
-                            <button type="submit" className="w-full md:w-auto md:min-w-[240px] md:ml-auto bg-brand-5 text-white font-bold text-lg py-4 px-8 rounded-xl shadow-premium hover:shadow-premium-hover hover:bg-brand-4 transition-all flex justify-center items-center gap-2 active:scale-[0.98]">
+                            <button type="submit" className="w-full md:w-auto md:min-w-[240px] md:ml-auto bg-brand-5 text-white font-semibold text-base py-4 px-8 rounded-xl shadow-premium hover:shadow-premium-hover hover:bg-brand-4 transition-all flex justify-center items-center gap-2 active:scale-[0.98]">
                                 <i className="fa-solid fa-check"></i> 儲存紀錄 (Enter)
                             </button>
                         </div>
@@ -734,8 +748,20 @@
         }
 
         // --- 2. 總覽儀表板 (Dashboard View) ---
-        function DashboardView({ todayTotal, viewMonthTotal, budget, quota, addonThisWeek, debtsByPerson, payDebt, viewMonth, onPrevMonth, onNextMonth }) {
-            const isOverBudget = viewMonthTotal > budget;
+        function DashboardView({ todayTotal, viewMonthTotal, thisWeekTotal, budget, budgetType, quota, addonThisWeek, debtsByPerson, payDebt, viewMonth, onPrevMonth, onNextMonth }) {
+            // 新增：根據預算週期動態切換進度條邏輯
+            let currentTotal = viewMonthTotal;
+            let budgetLabel = '預算使用率 (該月)';
+
+            if (budgetType === 'daily') {
+                currentTotal = todayTotal;
+                budgetLabel = '預算使用率 (今日)';
+            } else if (budgetType === 'weekly') {
+                currentTotal = thisWeekTotal;
+                budgetLabel = '預算使用率 (本週)';
+            }
+
+            const isOverBudget = currentTotal > budget;
             const quotaIcons = Array.from({length: Math.max(quota, addonThisWeek)}, (_, i) =>
                 <i key={i} className={`fa-solid fa-mug-hot text-2xl mx-1 ${i < addonThisWeek ? 'text-brand-2/30' : 'text-brand-3'}`} title={i < addonThisWeek ? "已喝" : "可喝"}></i>
             );
@@ -801,11 +827,11 @@
                         </div>
                         <div className="card-panel p-6 flex flex-col justify-center">
                             <div className="flex justify-between text-xs font-medium mb-3 uppercase tracking-wider">
-                                <span className="text-brand-4">預算使用率</span>
-                                <span className={isOverBudget ? 'text-[#A56B5D]' : 'text-brand-4'}>${viewMonthTotal} / ${budget}</span>
+                                <span className="text-brand-4">{budgetLabel}</span>
+                                <span className={isOverBudget ? 'text-[#A56B5D]' : 'text-brand-4'}>${currentTotal} / ${budget}</span>
                             </div>
                             <div className="w-full bg-brand-1/50 rounded-full h-2.5 overflow-hidden mb-3">
-                                <div className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-[#A56B5D]' : 'bg-brand-3'}`} style={{ width: `${Math.min(100, (viewMonthTotal / budget) * 100)}%` }}></div>
+                                <div className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-[#A56B5D]' : 'bg-brand-3'}`} style={{ width: `${Math.min(100, (currentTotal / budget) * 100)}%` }}></div>
                             </div>
                             {isOverBudget && <p className="text-[10px] text-[#A56B5D] font-bold text-right">已超支警示</p>}
                         </div>
@@ -823,7 +849,7 @@
         }
 
         // --- 新增：可視化日曆 (Calendar View) ---
-        function CalendarView({ viewMonth, onPrevMonth, onNextMonth, records, deleteRecord, updateRecord, budget }) {
+        function CalendarView({ viewMonth, onPrevMonth, onNextMonth, records, deleteRecord, updateRecord, budget, budgetType }) {
             const [mode, setMode] = useState('money'); // 'money' 或 'drink'
             const [selectedDate, setSelectedDate] = useState(null); // 存放被點擊的日期時間戳
             const [editingRecord, setEditingRecord] = useState(null);
@@ -833,7 +859,10 @@
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0(Sun) - 6(Sat)
 
-            const dailyBudget = Math.round(budget / 30); // 概算每日預算
+            // 新增：依照預算週期計算日曆的警報基準值
+            let dailyBudget = budget;
+            if (budgetType === 'weekly') dailyBudget = Math.round(budget / 7);
+            if (budgetType === 'monthly') dailyBudget = Math.round(budget / 30);
 
             // 產生格子資料
             const gridCells = [];
@@ -1163,7 +1192,7 @@
         }
 
         // --- 4. 設定頁面 (Settings View) ---
-        function SettingsView({ budget, setBudget, quota, setQuota, records, setRecords }) {
+        function SettingsView({ budget, setBudget, budgetType, setBudgetType, quota, setQuota, records, setRecords }) {
             const handleExport = () => {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
                 const a = document.createElement('a');
@@ -1192,7 +1221,15 @@
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="card-panel p-6 flex flex-col justify-center">
-                                <label className="block text-sm font-semibold text-brand-4 mb-4">每月預算設定</label>
+                                <label className="block text-sm font-semibold text-brand-4 mb-4">預算設定</label>
+
+                                {/* 新增：預算週期切換器 */}
+                                <div className="flex bg-brand-1/30 p-1 rounded-lg mb-4">
+                                    <button onClick={() => setBudgetType('daily')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${budgetType === 'daily' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每日</button>
+                                    <button onClick={() => setBudgetType('weekly')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${budgetType === 'weekly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每週</button>
+                                    <button onClick={() => setBudgetType('monthly')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${budgetType === 'monthly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每月</button>
+                                </div>
+
                                 <div className="relative flex items-center">
                                     <span className="absolute left-4 text-brand-2 text-sm">NT$</span>
                                     <input type="number" value={budget} onChange={e => setBudget(Number(e.target.value))}
