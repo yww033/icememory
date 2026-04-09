@@ -171,7 +171,7 @@
             return <div className="w-full h-48 relative"><canvas ref={canvasRef}></canvas></div>;
         }
 
-        // --- Chart.js 趨勢長條圖元件 (供年度/自訂模式使用) ---
+        // --- Chart.js 趨勢長條圖元件 ---
         function TrendBarChart({ records, scale }) {
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
@@ -834,12 +834,6 @@
                 document.body.removeChild(textArea);
             };
 
-            // 新增：計算平均每日花費
-            const today = new Date();
-            const isCurrentMonth = viewMonth.getMonth() === today.getMonth() && viewMonth.getFullYear() === today.getFullYear();
-            const daysPassed = isCurrentMonth ? Math.max(1, today.getDate()) : new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate();
-            const avgDaily = Math.round(viewMonthTotal / daysPassed);
-
             return (
                 <div className="flex flex-col gap-6 animate-fade-in pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
@@ -882,12 +876,6 @@
                             <i className="fa-solid fa-chart-line absolute -right-6 -bottom-6 text-7xl text-brand-1 opacity-50"></i>
                             <span className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-2">該月累積</span>
                             <span className="text-4xl font-bold text-brand-5 flex items-baseline"><span className="text-xl font-normal mr-1 text-brand-2">$</span>{viewMonthTotal}</span>
-
-                            {/* 新增：平均每日花費 */}
-                            <div className="mt-3 pt-3 border-t border-brand-1/50 w-full flex justify-between items-center z-10">
-                                <span className="text-[10px] text-brand-4 font-bold"><i className="fa-solid fa-divide mr-1"></i>平均每日花費</span>
-                                <span className="text-sm font-bold text-brand-5">${avgDaily}</span>
-                            </div>
                         </div>
                         <div className="card-panel p-6 flex flex-col justify-center">
                             <div className="flex justify-between text-xs font-medium mb-3 uppercase tracking-wider">
@@ -1060,6 +1048,7 @@
                         </div>
                     )}
 
+                    {/* 日曆內呼叫編輯 Modal */}
                     {editingRecord && (
                         <EditModal
                             record={editingRecord}
@@ -1067,7 +1056,7 @@
                             onSave={(updatedRecord) => {
                                 updateRecord(updatedRecord);
                                 setEditingRecord(null);
-                                setSelectedDate(null);
+                                setSelectedDate(null); // 更新後關閉日曆 Modal 以重新整理資料
                             }}
                         />
                     )}
@@ -1122,6 +1111,38 @@
             const catStats = filteredRecords.reduce((acc, curr) => { acc[curr.categoryId] = (acc[curr.categoryId] || 0) + Number(curr.price); return acc; }, {});
             const topItems = Object.entries(filteredRecords.reduce((acc, curr) => { acc[curr.name] = (acc[curr.name] || 0) + 1; return acc; }, {})).sort((a,b) => b[1] - a[1]).slice(0, 3);
             const totalExpense = filteredRecords.reduce((sum, r) => sum + r.price, 0);
+
+            // 新增：計算平日平均花費 (僅算該時段內的週一到週五)
+            const weekdayAvg = useMemo(() => {
+                if (filteredRecords.length === 0) return 0;
+
+                // 1. 加總平日花費
+                let weekdayTotal = 0;
+                filteredRecords.forEach(r => {
+                    const day = new Date(r.date).getDay();
+                    if (day >= 1 && day <= 5) weekdayTotal += r.price;
+                });
+
+                // 2. 計算平日天數
+                let weekdaysCount = 0;
+                const startTimestamp = Math.min(...filteredRecords.map(r => r.date));
+                const endTimestamp = Math.max(Date.now(), Math.max(...filteredRecords.map(r => r.date)));
+
+                // 如果是看未來的月份，或是選擇了沒有資料的區間，給一個防呆天數
+                if (!startTimestamp) return 0;
+
+                let current = new Date(timeScale === 'monthly' ? viewMonth.getTime() : startTimestamp);
+                const endDate = new Date(timeScale === 'monthly' ? Math.min(Date.now(), new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getTime()) : endTimestamp);
+
+                while (current <= endDate) {
+                    const day = current.getDay();
+                    if (day >= 1 && day <= 5) weekdaysCount++;
+                    current.setDate(current.getDate() + 1);
+                }
+
+                return weekdaysCount > 0 ? Math.round(weekdayTotal / weekdaysCount) : 0;
+            }, [filteredRecords, timeScale, viewMonth]);
+
 
             const drinkReport = useMemo(() => {
                 const drinks = filteredRecords.filter(r => DRINK_CATEGORIES.includes(r.categoryId));
@@ -1203,7 +1224,14 @@
                                 {/* 總花費摘要 */}
                                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-brand-3/10 rounded-full blur-xl"></div>
                                 <h3 className="text-sm font-semibold text-brand-5 mb-2 w-full text-left">{reportTitle}總花費</h3>
-                                <p className="text-3xl font-bold text-brand-5 w-full text-left mb-6">${totalExpense.toLocaleString()}</p>
+                                <p className="text-3xl font-bold text-brand-5 w-full text-left mb-2">${totalExpense.toLocaleString()}</p>
+
+                                {/* 新增：平日平均花費 */}
+                                <div className="w-full text-left mb-6 pb-4 border-b border-brand-1/50">
+                                    <span className="text-xs font-semibold text-brand-4 bg-brand-1/30 px-2 py-1 rounded-md">
+                                        <i className="fa-solid fa-briefcase mr-1"></i> 平日平均：${weekdayAvg} / 天
+                                    </span>
+                                </div>
 
                                 {Object.keys(catStats).length > 0 ? (
                                     <>
@@ -1292,7 +1320,7 @@
                                                 className="flex items-center justify-between cursor-pointer bg-brand-1/30 hover:bg-brand-1/50 px-4 py-2.5 rounded-xl transition-colors mb-3 select-none"
                                             >
                                                 <h4 className="text-sm font-bold text-brand-5">
-                                                    <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'} w-5 text-brand-3 transition-transform`}></i>
+                                                    <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'} w-5 text-brand-3 transition-transform mr-2`}></i>
                                                     {groupName} <span className="text-brand-4 ml-1 text-xs">(共 ${groupRecords.reduce((s,r)=>s+r.price,0).toLocaleString()})</span>
                                                 </h4>
                                                 <span className="text-xs font-bold text-brand-3">{groupRecords.length} 筆</span>
@@ -1430,9 +1458,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-    <style>
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-    </style>
 </body>
 </html>
