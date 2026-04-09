@@ -171,7 +171,7 @@
             return <div className="w-full h-48 relative"><canvas ref={canvasRef}></canvas></div>;
         }
 
-        // --- 新增：Chart.js 趨勢長條圖元件 (供年度/自訂模式使用) ---
+        // --- Chart.js 趨勢長條圖元件 (供年度/自訂模式使用) ---
         function TrendBarChart({ records, scale }) {
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
@@ -478,7 +478,7 @@
                                 />}
                                 {activeTab === 'add' && <AddView records={records} setRecords={setRecords} setActiveTab={setActiveTab} />}
                                 {activeTab === 'history' && <HistoryView
-                                    records={records} /* 更新：傳入所有紀錄以供切換維度 */
+                                    records={records}
                                     deleteRecord={deleteRecord}
                                     updateRecord={updateRecord}
                                     viewMonth={viewMonth}
