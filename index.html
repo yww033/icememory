@@ -1507,7 +1507,19 @@ function SettingsView({ settings, updateSettings, categories, records, setRecord
         if(!fbAuth) return;
         try { await window.FB.signOut(fbAuth); } catch (error) { console.error(error); }
     };
+// --- 新增：自訂分類管理狀態與邏輯 ---
+    const [editingCategories, setEditingCategories] = useState(categories);
 
+    // 處理分類名稱變更
+    const handleCategoryNameChange = (id, newName) => {
+        setEditingCategories(prev => prev.map(c => c.id === id ? { ...c, name: newName } : c));
+    };
+
+    // 儲存分類變更 (同步更新到 settings 引擎)
+    const saveCategories = () => {
+        updateSettings(settings, editingCategories);
+        alert('分類設定已儲存！');
+    };
     return (
         <div className="flex flex-col gap-6 animate-fade-in pb-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
@@ -1591,9 +1603,28 @@ function SettingsView({ settings, updateSettings, categories, records, setRecord
                     </div>
                 </div>
 
-                <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div>
-                        <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-calculator mr-2 text-brand-3"></i>平均花費算法</h3>
+                {/* --- 新增：自訂分類管理 UI --- */}
+                        <div className="card-panel p-6 flex flex-col gap-4">
+                            <div>
+                                <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-tags mr-2 text-brand-3"></i>自訂分類標籤</h3>
+                                <p className="text-xs text-brand-4 mb-4">你可以自由更改前 10 大分類的名稱，打造專屬記帳本。</p>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                {editingCategories.map(cat => (
+                                    <div key={cat.id} className="flex flex-col gap-1.5 p-2 bg-brand-1/20 rounded-lg border border-brand-2/20">
+                                        <div className="text-center text-brand-3 text-lg"><i className={cat.icon}></i></div>
+                                        <input type="text" value={cat.name} onChange={(e) => handleCategoryNameChange(cat.id, e.target.value)} className="w-full bg-white border border-brand-2/40 rounded text-center px-1 py-1 text-xs text-brand-5 focus:border-brand-3 focus:outline-none transition-colors" />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end mt-2">
+                                <button onClick={saveCategories} className="px-5 py-2 rounded-xl text-xs font-bold bg-brand-5 text-white hover:bg-brand-4 transition-colors shadow-sm">儲存分類設定</button>
+                            </div>
+                        </div>
+
+                        <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div>
+                                <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-calculator mr-2 text-brand-3"></i>平均花費算法</h3>
                         <p className="text-xs text-brand-4">報表中的每日平均花費如何計算？</p>
                     </div>
                     <div className="flex bg-brand-1/30 p-1 rounded-lg w-full md:w-auto">
