@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -54,12 +55,27 @@
             overflow: hidden;
         }
 
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(157, 159, 151, 0.4); border-radius: 8px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(105, 127, 147, 0.8); }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(157, 159, 151, 0.4);
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(105, 127, 147, 0.8);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
 
         .card-panel {
             background: #FFFFFF;
@@ -68,21 +84,69 @@
             border-radius: 1rem;
         }
 
-        * { -webkit-tap-highlight-color: transparent; }
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
 
-        /* 日曆專用動畫 */
-        @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .calendar-cell-anim { animation: scaleIn 0.2s ease-out forwards; }
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .calendar-cell-anim {
+            animation: scaleIn 0.2s ease-out forwards;
+        }
+
+        .pulse-cloud {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
     </style>
 </head>
+
 <body>
     <div id="root" class="w-full h-[100dvh]"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
-        // 10 大分類
-        const CATEGORIES = [
+
+        const USER_FIREBASE_CONFIG = {
+
+            apiKey: "AIzaSyCggdg-eIOKAPt95TiE3jI4Q_Ae_bUjKEo",
+            authDomain: "icememory-6ad56.firebaseapp.com",
+            projectId: "icememory-6ad56",
+            storageBucket: "icememory-6ad56.firebasestorage.app",
+            messagingSenderId: "496500713930",
+            appId: "1:496500713930:web:ae75be464177b1bbb50733"
+        };
+
+        // 判斷是否為雲端模式
+        const isCloudMode = typeof __firebase_config !== 'undefined' || USER_FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
+        const activeAppId = typeof __app_id !== 'undefined' ? __app_id : 'icememory-github-pages';
+
+
+        const DEFAULT_CATEGORIES = [
             { id: 'rice', icon: 'fa-solid fa-bowl-rice', name: '飯類' },
             { id: 'noodle', icon: 'fa-solid fa-bowl-food', name: '麵類' },
             { id: 'fastfood', icon: 'fa-solid fa-burger', name: '速食/炸物' },
@@ -94,32 +158,22 @@
             { id: 'dumpling', icon: 'fa-solid fa-utensils', name: '水餃' },
             { id: 'other', icon: 'fa-solid fa-box-open', name: '其他/點心' },
         ];
-
         const DRINK_CATEGORIES = ['tea', 'milktea', 'addon', 'coffee'];
         const SUGAR_OPTIONS = ['正常', '少糖(7)', '半糖(5)', '微糖(3)', '一分', '無糖'];
         const ICE_OPTIONS = ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '常溫', '溫', '熱'];
-
         const CHART_COLORS = ['#697F93', '#415365', '#9D9F97', '#1E262F', '#D6D4C9', '#8C9B90', '#B5AFA1', '#5B6973', '#4A5862', '#2C363F'];
 
-        // --- LocalStorage Hook ---
-        function useLocalStorage(key, initialValue) {
-            const [storedValue, setStoredValue] = useState(() => {
-                try {
-                    const item = window.localStorage.getItem(key);
-                    return item ? JSON.parse(item) : initialValue;
-                } catch (error) { return initialValue; }
-            });
-            const setValue = (value) => {
-                try {
-                    const valueToStore = value instanceof Function ? value(storedValue) : value;
-                    setStoredValue(valueToStore);
-                    window.localStorage.setItem(key, JSON.stringify(valueToStore));
-                } catch (error) { console.error(error); }
-            };
-            return [storedValue, setValue];
-        }
+        const DEFAULT_SETTINGS = {
+            budget: 5000,
+            budgetType: 'monthly', // daily, weekly, monthly
+            goalEnabled: true,
+            goalCategory: 'addon', // 對應 categoryId
+            goalPeriod: 'weekly',  // weekly, monthly
+            goalLimit: 2,
+            avgCalcMethod: 'workdays', // workdays, alldays
+        };
 
-        // --- 共通小元件：紀錄顯示 (含糖冰) ---
+        // 共通小元件：紀錄顯示 (含糖冰)
         function RecordDisplayName({ record }) {
             return (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
@@ -133,45 +187,34 @@
             )
         }
 
-        // --- Chart.js 圓餅圖元件 ---
-        function PieChart({ catStats }) {
+        // --- Chart.js 元件 ---
+        function PieChart({ catStats, categories }) {
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
 
             useEffect(() => {
                 if (chartInstance.current) chartInstance.current.destroy();
                 const ctx = canvasRef.current.getContext('2d');
-                const labels = Object.keys(catStats).map(id => CATEGORIES.find(c => c.id === id)?.name || id);
+                const labels = Object.keys(catStats).map(id => categories.find(c => c.id === id)?.name || id);
                 const data = Object.values(catStats);
 
                 chartInstance.current = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         labels,
-                        datasets: [{
-                            data,
-                            backgroundColor: CHART_COLORS.slice(0, data.length),
-                            borderWidth: 0,
-                            hoverOffset: 4
-                        }]
+                        datasets: [{ data, backgroundColor: CHART_COLORS.slice(0, data.length), borderWidth: 0, hoverOffset: 4 }]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '70%',
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: { backgroundColor: '#1E262F', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 }
-                        }
+                        responsive: true, maintainAspectRatio: false, cutout: '70%',
+                        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E262F', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 } }
                     }
                 });
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-            }, [catStats]);
+            }, [catStats, categories]);
 
             return <div className="w-full h-48 relative"><canvas ref={canvasRef}></canvas></div>;
         }
 
-        // --- Chart.js 趨勢長條圖元件 ---
         function TrendBarChart({ records, scale }) {
             const canvasRef = useRef(null);
             const chartInstance = useRef(null);
@@ -180,22 +223,17 @@
                 if (chartInstance.current) chartInstance.current.destroy();
                 const ctx = canvasRef.current.getContext('2d');
 
-                let labels = [];
-                let data = [];
-
+                let labels = []; let data = [];
                 if (scale === 'yearly') {
-                    labels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+                    labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
                     const monthData = new Array(12).fill(0);
-                    records.forEach(r => {
-                        const m = new Date(r.date).getMonth();
-                        monthData[m] += r.price;
-                    });
+                    records.forEach(r => monthData[new Date(r.date).getMonth()] += r.price);
                     data = monthData;
                 } else {
                     const groups = {};
                     records.forEach(r => {
                         const d = new Date(r.date);
-                        const key = `${d.getFullYear()}/${d.getMonth()+1}`;
+                        const key = `${d.getFullYear()}/${d.getMonth() + 1}`;
                         groups[key] = (groups[key] || 0) + r.price;
                     });
                     labels = Object.keys(groups).sort();
@@ -204,26 +242,11 @@
 
                 chartInstance.current = new Chart(ctx, {
                     type: 'bar',
-                    data: {
-                        labels,
-                        datasets: [{
-                            data,
-                            backgroundColor: '#697F93',
-                            borderRadius: 4,
-                            barPercentage: 0.6
-                        }]
-                    },
+                    data: { labels, datasets: [{ data, backgroundColor: '#697F93', borderRadius: 4, barPercentage: 0.6 }] },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: { backgroundColor: '#1E262F', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 }
-                        },
-                        scales: {
-                            y: { beginAtZero: true, grid: { color: 'rgba(157, 159, 151, 0.15)' }, border: { display: false }, ticks: { font: { size: 10 } } },
-                            x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 } } }
-                        }
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E262F', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 } },
+                        scales: { y: { beginAtZero: true, grid: { color: 'rgba(157, 159, 151, 0.15)' }, border: { display: false }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 } } } }
                     }
                 });
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
@@ -232,7 +255,6 @@
             return <div className="w-full h-48 mt-6 border-t border-brand-1/50 pt-6 relative"><canvas ref={canvasRef}></canvas></div>;
         }
 
-        // --- 月份切換器元件 ---
         function MonthNavigator({ viewMonth, onPrev, onNext }) {
             const year = viewMonth.getFullYear();
             const month = viewMonth.getMonth() + 1;
@@ -246,14 +268,13 @@
         }
 
         // --- 編輯紀錄 Modal ---
-        function EditModal({ record, onClose, onSave }) {
+        function EditModal({ record, onClose, onSave, categories }) {
             const [name, setName] = useState(record.name);
             const [price, setPrice] = useState(record.price);
             const [categoryId, setCategoryId] = useState(record.categoryId);
             const [payer, setPayer] = useState(record.payer || '');
             const [memo, setMemo] = useState(record.memo || '');
             const [rating, setRating] = useState(record.rating || 0);
-
             const [sugar, setSugar] = useState(record.sugar || '');
             const [ice, setIce] = useState(record.ice || '');
             const isDrink = DRINK_CATEGORIES.includes(categoryId);
@@ -265,27 +286,15 @@
 
             const handleSubmit = (e) => {
                 e.preventDefault();
-                if(!name || !price) return;
-
+                if (!name || !price) return;
                 let newTimestamp = record.date;
                 const originalDateStr = new Date(new Date(record.date).getTime() - new Date(record.date).getTimezoneOffset() * 60000).toISOString().split('T')[0];
-
-                if (recordDate !== originalDateStr) {
-                     newTimestamp = new Date(recordDate).getTime() + (12 * 60 * 60 * 1000);
-                }
+                if (recordDate !== originalDateStr) newTimestamp = new Date(recordDate).getTime() + (12 * 60 * 60 * 1000);
 
                 onSave({
-                    ...record,
-                    name: name.trim(),
-                    price: Number(price),
-                    categoryId,
-                    payer: payer.trim() || null,
-                    isPaid: payer.trim() ? (record.payer === payer.trim() ? record.isPaid : false) : true,
-                    memo: memo.trim(),
-                    rating,
-                    sugar: isDrink ? sugar : '',
-                    ice: isDrink ? ice : '',
-                    date: newTimestamp
+                    ...record, name: name.trim(), price: Number(price), categoryId,
+                    payer: payer.trim() || null, isPaid: payer.trim() ? (record.payer === payer.trim() ? record.isPaid : false) : true,
+                    memo: memo.trim(), rating, sugar: isDrink ? sugar : '', ice: isDrink ? ice : '', date: newTimestamp
                 });
             };
 
@@ -296,19 +305,16 @@
                             <h3 className="font-bold text-brand-5"><i className="fa-solid fa-pen-to-square mr-2 text-brand-3"></i>編輯紀錄</h3>
                             <button onClick={onClose} className="text-brand-2 hover:text-brand-5 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
                         </div>
-
                         <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
                             <form id="editForm" onSubmit={handleSubmit} className="flex flex-col gap-5">
-
                                 <div>
                                     <label className="block text-xs font-semibold text-brand-4 mb-2">消費日期</label>
                                     <input type="date" value={recordDate} onChange={e => setRecordDate(e.target.value)} required className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all cursor-pointer" />
                                 </div>
-
                                 <div>
                                     <label className="block text-xs font-semibold text-brand-4 mb-2">分類</label>
                                     <div className="flex flex-wrap gap-2">
-                                        {CATEGORIES.map(cat => (
+                                        {categories.map(cat => (
                                             <button type="button" key={cat.id} onClick={() => setCategoryId(cat.id)}
                                                 className={`px-3 py-2 rounded-xl text-xs font-medium transition-all border ${categoryId === cat.id ? 'bg-brand-5 text-white border-brand-5' : 'bg-white text-brand-4 border-brand-2/20 hover:border-brand-3'}`}>
                                                 <i className={`${cat.icon} mr-1.5`}></i>{cat.name}
@@ -316,7 +322,6 @@
                                         ))}
                                     </div>
                                 </div>
-
                                 <div className="flex gap-4">
                                     <div className="flex-1">
                                         <label className="block text-xs font-semibold text-brand-4 mb-2">品項名稱</label>
@@ -353,18 +358,16 @@
                                     <label className="block text-xs font-semibold text-[#A56B5D] mb-2"><i className="fa-solid fa-user-group mr-1.5"></i>代墊人</label>
                                     <input type="text" value={payer} onChange={e => setPayer(e.target.value)} placeholder="同事名字" className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all" />
                                 </div>
-
                                 <div>
                                     <label className="block text-xs font-semibold text-brand-4 mb-2">{isDrink ? '配料與評價' : '備註與評價'}</label>
                                     <div className="flex gap-2">
                                         <input type="text" value={memo} onChange={e => setMemo(e.target.value)} placeholder={isDrink ? "例：+白玉波霸" : "例：微糖少冰"} className="flex-1 bg-white border border-brand-2/40 rounded-xl px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none text-sm transition-all" />
-                                        <button type="button" onClick={()=>setRating(rating===1?0:1)} className={`w-11 rounded-xl border transition-all text-sm flex items-center justify-center ${rating===1?'bg-brand-5 text-white border-brand-5':'bg-white text-brand-2 border-brand-2/40 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-up"></i></button>
-                                        <button type="button" onClick={()=>setRating(rating===-1?0:-1)} className={`w-11 rounded-xl border transition-all text-sm flex items-center justify-center ${rating===-1?'bg-brand-5 text-white border-brand-5':'bg-white text-brand-2 border-brand-2/40 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-down"></i></button>
+                                        <button type="button" onClick={() => setRating(rating === 1 ? 0 : 1)} className={`w-11 rounded-xl border transition-all text-sm flex items-center justify-center ${rating === 1 ? 'bg-brand-5 text-white border-brand-5' : 'bg-white text-brand-2 border-brand-2/40 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-up"></i></button>
+                                        <button type="button" onClick={() => setRating(rating === -1 ? 0 : -1)} className={`w-11 rounded-xl border transition-all text-sm flex items-center justify-center ${rating === -1 ? 'bg-brand-5 text-white border-brand-5' : 'bg-white text-brand-2 border-brand-2/40 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-down"></i></button>
                                     </div>
                                 </div>
                             </form>
                         </div>
-
                         <div className="px-6 py-4 border-t border-brand-1/50 flex justify-end gap-3 bg-brand-1/10">
                             <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-brand-4 hover:bg-brand-2/20 transition-colors">取消</button>
                             <button type="submit" form="editForm" className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-brand-5 text-white hover:bg-brand-4 transition-colors shadow-sm">儲存變更</button>
@@ -374,22 +377,188 @@
             );
         }
 
-        // --- 主程式 App ---
+        // ==========================================
+        // 主程式 App (整合雲端與單機雙引擎)
+        // ==========================================
         function App() {
-            const [records, setRecords] = useLocalStorage('icememory_records', []);
-            const [budget, setBudget] = useLocalStorage('icememory_budget', 5000);
-            const [budgetType, setBudgetType] = useLocalStorage('icememory_budget_type', 'monthly');
-            const [quota, setQuota] = useLocalStorage('icememory_quota', 2);
-            const [activeTab, setActiveTab] = useState('add');
+            // --- 核心狀態 ---
+            const [records, setRecords] = useState([]);
+            const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+            const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
 
-            // 新增：政府國定假日 API 緩存與獲取
+            const [activeTab, setActiveTab] = useState('add');
             const [holidays, setHolidays] = useState({});
 
+            // --- 雲端/登入狀態 ---
+            const [fbDB, setFbDB] = useState(null);
+            const [fbAuth, setFbAuth] = useState(null);
+            const [user, setUser] = useState(null);
+            const [syncStatus, setSyncStatus] = useState(isCloudMode ? 'connecting' : 'offline'); // connecting, synced, error, offline
+            const [showMigrateModal, setShowMigrateModal] = useState(false);
+
+            // --- 日期狀態 ---
             const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
             const handlePrevMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1));
             const handleNextMonth = () => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1));
 
-            // 自動載入所選年份與當年度的假日資料
+            // --- 載入 Firebase 引擎 ---
+            useEffect(() => {
+                const initFirebase = async () => {
+                    if (!isCloudMode) {
+                        // 降級為單機模式：從 LocalStorage 讀取
+                        const localRecords = JSON.parse(window.localStorage.getItem('icememory_records') || '[]');
+                        const localSettings = JSON.parse(window.localStorage.getItem('icememory_settings') || JSON.stringify(DEFAULT_SETTINGS));
+                        const localCategories = JSON.parse(window.localStorage.getItem('icememory_categories') || JSON.stringify(DEFAULT_CATEGORIES));
+                        setRecords(localRecords);
+                        setSettings(localSettings);
+                        setCategories(localCategories);
+                        setSyncStatus('offline');
+                        return;
+                    }
+
+                    try {
+                        // 使用 Function 繞過 Babel 對動態 import 的編譯 (防止轉為 require)
+                        const _dynamicImport = new Function('modulePath', 'return import(modulePath)');
+
+                        const { initializeApp } = await _dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                        const { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, signInWithPopup, GoogleAuthProvider, signOut } = await _dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                        const { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch } = await _dynamicImport("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+                        // 將需要的 Firebase 模組掛載到 window 供後續存取
+                        window.FB = { doc, setDoc, deleteDoc, collection, writeBatch, signInWithPopup, GoogleAuthProvider, signOut, onSnapshot };
+
+                        let configToUse = USER_FIREBASE_CONFIG;
+                        if (typeof __firebase_config !== 'undefined') configToUse = JSON.parse(__firebase_config);
+
+                        const app = initializeApp(configToUse);
+                        const auth = getAuth(app);
+                        const db = getFirestore(app);
+                        setFbDB(db); setFbAuth(auth);
+
+                        // 判斷登入邏輯 (Canvas 預設 Token 或 匿名 / GitHub Pages 依賴真實登入)
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else if (typeof __firebase_config !== 'undefined') {
+                            await signInAnonymously(auth); // Canvas 的備用方案
+                        }
+
+                        onAuthStateChanged(auth, (currentUser) => {
+                            setUser(currentUser);
+                            if (currentUser) {
+                                // 檢查是否需要搬家 (本地有資料 + 雲端還沒標記搬過)
+                                const localRecords = JSON.parse(window.localStorage.getItem('icememory_records') || '[]');
+                                if (localRecords.length > 0 && !window.localStorage.getItem('icememory_migrated')) {
+                                    setShowMigrateModal(true);
+                                }
+                            } else {
+                                // 若登出，切回預設/本地畫面
+                                setRecords([]); setSettings(DEFAULT_SETTINGS); setSyncStatus('offline');
+                            }
+                        });
+                    } catch (error) {
+                        console.error("Firebase 初始化失敗，降級單機模式", error);
+                        setSyncStatus('error');
+                    }
+                };
+                initFirebase();
+            }, []);
+
+            // --- 監聽雲端資料 (Firestore) ---
+            useEffect(() => {
+                if (!isCloudMode || !user || !fbDB || !window.FB || !window.FB.onSnapshot) return;
+
+                const recordsRef = window.FB.collection(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'records');
+                const settingsRef = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'settings', 'config');
+
+                setSyncStatus('connecting');
+
+                const unsubRecords = window.FB.onSnapshot(recordsRef, (snapshot) => {
+                    const data = [];
+                    snapshot.forEach(doc => data.push(doc.data()));
+                    setRecords(data);
+                    setSyncStatus('synced');
+                }, (err) => { console.error(err); setSyncStatus('error'); });
+
+                const unsubSettings = window.FB.onSnapshot(settingsRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        if (data.userSettings) setSettings(data.userSettings);
+                        if (data.categories) setCategories(data.categories);
+                    }
+                }, (err) => { console.error(err); });
+
+                return () => { unsubRecords(); unsubSettings(); };
+            }, [user, fbDB]);
+
+            // --- 資料異動引擎 (支援雲端與單機) ---
+            const updateSettings = useCallback(async (newSettings, newCategories = categories) => {
+                setSettings(newSettings); setCategories(newCategories);
+                if (isCloudMode && user && fbDB) {
+                    const ref = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'settings', 'config');
+                    await window.FB.setDoc(ref, { userSettings: newSettings, categories: newCategories }, { merge: true });
+                } else {
+                    window.localStorage.setItem('icememory_settings', JSON.stringify(newSettings));
+                    window.localStorage.setItem('icememory_categories', JSON.stringify(newCategories));
+                }
+            }, [user, fbDB, categories]);
+
+            const addRecord = async (record) => {
+                if (isCloudMode && user && fbDB) {
+                    const ref = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'records', record.id);
+                    await window.FB.setDoc(ref, record);
+                } else {
+                    const newData = [...records, record];
+                    setRecords(newData);
+                    window.localStorage.setItem('icememory_records', JSON.stringify(newData));
+                }
+            };
+
+            const updateRecord = async (record) => {
+                if (isCloudMode && user && fbDB) {
+                    const ref = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'records', record.id);
+                    await window.FB.setDoc(ref, record);
+                } else {
+                    const newData = records.map(r => r.id === record.id ? record : r);
+                    setRecords(newData);
+                    window.localStorage.setItem('icememory_records', JSON.stringify(newData));
+                }
+            };
+
+            const deleteRecord = async (id) => {
+                if (window.confirm('確定要刪除這筆紀錄嗎？')) {
+                    if (isCloudMode && user && fbDB) {
+                        const ref = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'records', id);
+                        await window.FB.deleteDoc(ref);
+                    } else {
+                        const newData = records.filter(r => r.id !== id);
+                        setRecords(newData);
+                        window.localStorage.setItem('icememory_records', JSON.stringify(newData));
+                    }
+                }
+            };
+
+            // 一鍵搬家函數
+            const performMigration = async () => {
+                try {
+                    const localRecords = JSON.parse(window.localStorage.getItem('icememory_records') || '[]');
+                    if (localRecords.length > 0 && fbDB && user) {
+                        const batch = window.FB.writeBatch(fbDB);
+                        localRecords.forEach(r => {
+                            const ref = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'records', r.id);
+                            batch.set(ref, r);
+                        });
+                        await batch.commit();
+                        window.localStorage.setItem('icememory_migrated', 'true');
+                        window.localStorage.removeItem('icememory_records'); // 搬家後清空本地，避免重複提示
+                    }
+                    setShowMigrateModal(false);
+                } catch (e) {
+                    alert('搬家失敗，請確認網路狀態');
+                    console.error(e);
+                }
+            };
+
+            // --- 政府行事曆 API ---
             useEffect(() => {
                 const fetchYearHolidays = async (y) => {
                     const cacheKey = `icememory_holidays_${y}`;
@@ -403,10 +572,7 @@
                         data.forEach(d => { map[d.date] = d; });
                         localStorage.setItem(cacheKey, JSON.stringify(map));
                         return map;
-                    } catch (e) {
-                        console.error('行事曆抓取失敗', e);
-                        return {};
-                    }
+                    } catch (e) { return {}; }
                 };
 
                 const loadHolidays = async () => {
@@ -419,13 +585,12 @@
                 loadHolidays();
             }, [viewMonth]);
 
+            // --- 核心計算 ---
             const now = new Date();
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-
             const dayOfWeek = now.getDay();
             const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
             const startOfWeek = new Date(now.getFullYear(), now.getMonth(), diffToMonday).getTime();
-
             const startOfViewMonth = viewMonth.getTime();
             const endOfViewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
 
@@ -435,64 +600,97 @@
 
             const viewMonthRecords = records.filter(r => r.date >= startOfViewMonth && r.date <= endOfViewMonth);
             const viewMonthTotal = viewMonthRecords.reduce((sum, r) => sum + Number(r.price), 0);
-            const addonThisWeek = thisWeekRecords.filter(r => CATEGORIES.find(c => c.id === r.categoryId)?.isAddon).length;
+
+            // 動態目標扣打計算
+            let goalCurrentVal = 0;
+            if (settings.goalEnabled) {
+                const targetRecords = settings.goalPeriod === 'weekly' ? thisWeekRecords : (settings.goalPeriod === 'monthly' ? records.filter(r => r.date >= new Date(now.getFullYear(), now.getMonth(), 1).getTime()) : todayTotal);
+                goalCurrentVal = targetRecords.filter(r => r.categoryId === settings.goalCategory).length;
+            }
 
             const debts = records.filter(r => r.payer && !r.isPaid);
             const debtsByPerson = debts.reduce((acc, curr) => {
-                if(!acc[curr.payer]) acc[curr.payer] = { total: 0, items: [], ids: [] };
+                if (!acc[curr.payer]) acc[curr.payer] = { total: 0, items: [], ids: [] };
                 acc[curr.payer].total += Number(curr.price);
                 acc[curr.payer].items.push(curr.name);
                 acc[curr.payer].ids.push(curr.id);
                 return acc;
             }, {});
 
-            const payDebt = (payerName) => {
+            const payDebt = async (payerName) => {
                 const idsToPay = debtsByPerson[payerName].ids;
-                setRecords(records.map(r => idsToPay.includes(r.id) ? { ...r, isPaid: true } : r));
+                if (isCloudMode && fbDB && user) {
+                    const batch = window.FB.writeBatch(fbDB);
+                    idsToPay.forEach(id => {
+                        const ref = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'records', id);
+                        batch.update(ref, { isPaid: true });
+                    });
+                    await batch.commit();
+                } else {
+                    const newData = records.map(r => idsToPay.includes(r.id) ? { ...r, isPaid: true } : r);
+                    setRecords(newData);
+                    window.localStorage.setItem('icememory_records', JSON.stringify(newData));
+                }
             };
 
-            const deleteRecord = (id) => {
-                if(window.confirm('確定要刪除這筆紀錄嗎？')) setRecords(records.filter(r => r.id !== id));
-            };
-
-            const updateRecord = (updatedRecord) => {
-                setRecords(records.map(r => r.id === updatedRecord.id ? updatedRecord : r));
-            };
+            // 狀態燈號顯示
+            const syncIcon = {
+                offline: { icon: 'fa-cloud-arrow-down', color: 'text-brand-2', text: '單機模式' },
+                connecting: { icon: 'fa-cloud', color: 'text-brand-3 pulse-cloud', text: '同步中...' },
+                synced: { icon: 'fa-cloud-check', color: 'text-green-600', text: '已同步雲端' },
+                error: { icon: 'fa-cloud-xmark', color: 'text-[#A56B5D]', text: '連線異常' }
+            }[syncStatus];
 
             return (
                 <div className="flex h-full w-full">
+                    {/* 搬家提示 Modal */}
+                    {showMigrateModal && (
+                        <div className="fixed inset-0 bg-brand-5/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-fade-in">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+                                <div className="text-5xl mb-4">📦</div>
+                                <h3 className="text-xl font-bold text-brand-5 mb-2">發現本地記帳資料！</h3>
+                                <p className="text-sm text-brand-4 mb-8">系統偵測到您在單機模式累積了紀錄。<br />是否要一鍵搬家到雲端？未來換手機或電腦登入都不怕遺失囉！</p>
+                                <div className="flex gap-4">
+                                    <button onClick={() => setShowMigrateModal(false)} className="flex-1 py-3 rounded-xl text-brand-4 font-semibold hover:bg-brand-1/30 transition-colors">先不要</button>
+                                    <button onClick={performMigration} className="flex-1 py-3 rounded-xl bg-brand-5 text-white font-bold shadow-md hover:bg-brand-4 transition-colors">🚀 一鍵搬上雲端</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                    {/* --- 桌機版：左側固定選單 (Sidebar) - Premium Style --- */}
+                    {/* --- 桌機版：左側固定選單 (Sidebar) --- */}
                     <aside className="hidden md:flex flex-col w-64 bg-brand-5 text-brand-1 shadow-2xl z-20">
                         <div className="p-8 pb-6">
                             <h1 className="text-2xl font-bold text-white flex items-center gap-3 mb-1 tracking-wide">
                                 <i className="fa-solid fa-snowflake text-brand-3 text-2xl"></i>
                                 ICEMemory
                             </h1>
+                            <div className="flex items-center gap-2 mt-2 opacity-70">
+                                <i className={`fa-solid ${syncIcon.icon} ${syncIcon.color} text-xs`}></i>
+                                <span className="text-[10px] uppercase tracking-wider">{syncIcon.text}</span>
+                            </div>
                         </div>
 
                         <nav className="flex-1 px-4 space-y-2 mt-4">
-                            <SidebarBtn icon="fa-plus" label="記一筆" active={activeTab === 'add'} onClick={() => setActiveTab('add')} isPrimary/>
+                            <SidebarBtn icon="fa-plus" label="記一筆" active={activeTab === 'add'} onClick={() => setActiveTab('add')} isPrimary />
                             <div className="h-6 border-b border-brand-4/40 mx-4 mb-6"></div>
                             <SidebarBtn icon="fa-border-all" label="總覽儀表板" active={activeTab === 'dash'} onClick={() => setActiveTab('dash')} />
                             <SidebarBtn icon="fa-calendar-days" label="可視化日曆" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
                             <SidebarBtn icon="fa-file-invoice" label="歷史與報表" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
                             <SidebarBtn icon="fa-sliders" label="系統設定" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                         </nav>
-
-                        <div className="p-6 text-center text-[10px] text-brand-2 tracking-widest uppercase">
-                            Workspace
-                        </div>
                     </aside>
 
                     {/* --- 主要內容區 (Main Content) --- */}
                     <main className="flex-1 flex flex-col relative w-full h-full overflow-hidden">
-
                         {/* 手機版：頂部 Header */}
                         <header className="md:hidden px-6 pt-8 pb-4 flex justify-between items-center z-10 shrink-0 bg-white border-b border-brand-2/20 shadow-sm">
                             <h1 className="text-xl font-bold text-brand-5 flex items-center gap-2">
                                 <i className="fa-solid fa-snowflake text-brand-3"></i> ICEMemory
                             </h1>
+                            <div className="flex items-center gap-1.5 opacity-80" title={syncIcon.text}>
+                                <i className={`fa-solid ${syncIcon.icon} ${syncIcon.color} text-sm`}></i>
+                            </div>
                         </header>
 
                         {/* 視圖內容 */}
@@ -500,30 +698,23 @@
                             <div className="max-w-6xl mx-auto">
                                 {activeTab === 'dash' && <DashboardView
                                     todayTotal={todayTotal} viewMonthTotal={viewMonthTotal} thisWeekTotal={thisWeekTotal}
-                                    budget={budget} budgetType={budgetType} quota={quota}
-                                    addonThisWeek={addonThisWeek} debtsByPerson={debtsByPerson} payDebt={payDebt}
-                                    viewMonth={viewMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth}
+                                    settings={settings} goalCurrentVal={goalCurrentVal} categories={categories}
+                                    debtsByPerson={debtsByPerson} payDebt={payDebt} viewMonth={viewMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} holidays={holidays}
                                 />}
                                 {activeTab === 'calendar' && <CalendarView
                                     viewMonth={viewMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth}
-                                    records={records} deleteRecord={deleteRecord} updateRecord={updateRecord}
-                                    budget={budget} budgetType={budgetType} holidays={holidays}
+                                    records={records} deleteRecord={deleteRecord} updateRecord={updateRecord} categories={categories}
+                                    settings={settings} holidays={holidays}
                                 />}
-                                {activeTab === 'add' && <AddView records={records} setRecords={setRecords} setActiveTab={setActiveTab} />}
+                                {activeTab === 'add' && <AddView records={records} setRecords={addRecord} categories={categories} setActiveTab={setActiveTab} />}
                                 {activeTab === 'history' && <HistoryView
-                                    records={records}
-                                    deleteRecord={deleteRecord}
-                                    updateRecord={updateRecord}
-                                    viewMonth={viewMonth}
-                                    onPrevMonth={handlePrevMonth}
-                                    onNextMonth={handleNextMonth}
-                                    holidays={holidays}
+                                    records={records} categories={categories} settings={settings}
+                                    deleteRecord={deleteRecord} updateRecord={updateRecord}
+                                    viewMonth={viewMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} holidays={holidays}
                                 />}
                                 {activeTab === 'settings' && <SettingsView
-                                    budget={budget} setBudget={setBudget}
-                                    budgetType={budgetType} setBudgetType={setBudgetType}
-                                    quota={quota} setQuota={setQuota}
-                                    records={records} setRecords={setRecords}
+                                    settings={settings} updateSettings={updateSettings} categories={categories}
+                                    records={records} setRecords={setRecords} isCloudMode={isCloudMode} user={user} fbAuth={fbAuth}
                                 />}
                             </div>
                         </div>
@@ -545,38 +736,20 @@
 
         // --- 桌機側邊欄按鈕 (Premium) ---
         function SidebarBtn({ icon, label, active, onClick, isPrimary }) {
-            if (isPrimary) {
-                return (
-                    <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${active ? 'bg-brand-3 text-white shadow-md' : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                        <i className={`fa-solid ${icon} text-base w-5 text-center`}></i> <span className="text-sm">{label}</span>
-                    </button>
-                )
-            }
-            return (
-                <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all ${active ? 'bg-brand-4/50 text-white border-l-4 border-brand-3 rounded-l-sm' : 'text-brand-2 hover:bg-brand-4/30 hover:text-white border-l-4 border-transparent'}`}>
-                    <i className={`fa-solid ${icon} text-base w-5 text-center ${active ? 'text-brand-3' : ''}`}></i> <span className="text-sm">{label}</span>
-                </button>
-            );
+            if (isPrimary) return (<button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${active ? 'bg-brand-3 text-white shadow-md' : 'bg-white/10 text-white hover:bg-white/20'} mb-2`}><i className={`fa-solid ${icon} text-base w-5 text-center`}></i> <span className="text-sm">{label}</span></button>)
+            return (<button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all ${active ? 'bg-brand-4/50 text-white border-l-4 border-brand-3 rounded-l-sm' : 'text-brand-2 hover:bg-brand-4/30 hover:text-white border-l-4 border-transparent'}`}><i className={`fa-solid ${icon} text-base w-5 text-center ${active ? 'text-brand-3' : ''}`}></i> <span className="text-sm">{label}</span></button>);
         }
-
-        // --- 手機底部按鈕 ---
         function MobileNavBtn({ icon, label, active, onClick }) {
-            return (
-                <button onClick={onClick} className={`flex flex-col items-center gap-1 w-12 sm:w-14 transition-all pt-1 ${active ? 'text-brand-5' : 'text-brand-2'}`}>
-                    <i className={`fa-solid ${icon} text-xl mb-0.5`}></i>
-                    <span className="text-[10px] font-medium">{label}</span>
-                </button>
-            );
+            return (<button onClick={onClick} className={`flex flex-col items-center gap-1 w-12 sm:w-14 transition-all pt-1 ${active ? 'text-brand-5' : 'text-brand-2'}`}><i className={`fa-solid ${icon} text-xl mb-0.5`}></i><span className="text-[10px] font-medium">{label}</span></button>);
         }
-
 
         // ==========================================
         // 1. 新增頁面 (Add View)
         // ==========================================
-        function AddView({ records, setRecords, setActiveTab }) {
+        function AddView({ records, setRecords, categories, setActiveTab }) {
             const [name, setName] = useState('');
             const [price, setPrice] = useState('');
-            const [categoryId, setCategoryId] = useState('rice');
+            const [categoryId, setCategoryId] = useState(categories[0].id);
             const [payer, setPayer] = useState('');
             const [memo, setMemo] = useState('');
             const [rating, setRating] = useState(0);
@@ -592,7 +765,7 @@
             const nameInputRef = useRef(null);
             const priceInputRef = useRef(null);
 
-            useEffect(() => { if(window.innerWidth > 768 && nameInputRef.current) nameInputRef.current.focus(); }, []);
+            useEffect(() => { if (window.innerWidth > 768 && nameInputRef.current) nameInputRef.current.focus(); }, []);
 
             const setDateOffset = (days) => {
                 const d = new Date(); d.setDate(d.getDate() + days);
@@ -608,16 +781,12 @@
 
             const suggestions = useMemo(() => {
                 if (name.trim() === '') return [];
-
-                const uniqueItems = [];
-                const seenNames = new Set();
-
+                const uniqueItems = []; const seenNames = new Set();
                 for (let i = records.length - 1; i >= 0; i--) {
                     const r = records[i];
                     if (!seenNames.has(r.name)) {
                         if (r.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(r.name.toLowerCase())) {
-                            uniqueItems.push(r);
-                            seenNames.add(r.name);
+                            uniqueItems.push(r); seenNames.add(r.name);
                         }
                     }
                     if (uniqueItems.length >= 6) break;
@@ -626,47 +795,34 @@
             }, [name, records]);
 
             const applySuggestion = (s) => {
-                setName(s.name);
-                setPrice(s.price);
-                setCategoryId(s.categoryId);
-                if(s.memo) setMemo(s.memo);
-                if(s.sugar) setSugar(s.sugar);
-                if(s.ice) setIce(s.ice);
+                setName(s.name); setPrice(s.price); setCategoryId(s.categoryId);
+                if (s.memo) setMemo(s.memo); if (s.sugar) setSugar(s.sugar); if (s.ice) setIce(s.ice);
                 setIsNameFocused(false);
-                if(priceInputRef.current) priceInputRef.current.focus();
+                if (priceInputRef.current) priceInputRef.current.focus();
             };
 
             const handleSubmit = (e) => {
                 e.preventDefault();
-
-                let finalName = name.trim();
-                let finalPrice = price;
+                let finalName = name.trim(); let finalPrice = price;
 
                 if (!finalPrice) {
                     const match = finalName.match(/^(.+?)\s+(\d+)$/);
-                    if (match) {
-                        finalName = match[1].trim();
-                        finalPrice = match[2];
-                    } else {
-                        if (priceInputRef.current) priceInputRef.current.focus();
-                        return;
-                    }
+                    if (match) { finalName = match[1].trim(); finalPrice = match[2]; }
+                    else { if (priceInputRef.current) priceInputRef.current.focus(); return; }
                 }
 
-                if(!finalName || !finalPrice) return;
+                if (!finalName || !finalPrice) return;
 
                 const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
                 let recordTimestamp = Date.now();
-                if (recordDate !== todayStr) {
-                    recordTimestamp = new Date(recordDate).getTime() + (12 * 60 * 60 * 1000);
-                }
+                if (recordDate !== todayStr) recordTimestamp = new Date(recordDate).getTime() + (12 * 60 * 60 * 1000);
 
-                setRecords([...records, {
+                // AddRecord is now an async function that handles either cloud or local
+                setRecords({
                     id: Date.now().toString(), date: recordTimestamp, name: finalName, price: Number(finalPrice), categoryId,
                     payer: payer.trim() || null, isPaid: payer.trim() ? false : true, memo: memo.trim(), rating,
-                    sugar: isDrink ? sugar : '',
-                    ice: isDrink ? ice : ''
-                }]);
+                    sugar: isDrink ? sugar : '', ice: isDrink ? ice : ''
+                });
 
                 setName(''); setPrice(''); setPayer(''); setMemo(''); setRating(0); setSugar(''); setIce('');
                 setActiveTab('dash');
@@ -679,7 +835,6 @@
                     </div>
 
                     <form onSubmit={handleSubmit} className="flex flex-col gap-6 md:gap-8">
-
                         {/* 日期選擇區 */}
                         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
                             <label className="text-sm font-semibold text-brand-4 whitespace-nowrap"><i className="fa-solid fa-calendar-day mr-2 text-brand-3"></i>消費日期</label>
@@ -693,20 +848,19 @@
                             </div>
                         </div>
 
-                        {/* 分類按鈕 (10 大分類) */}
-                        <div className="grid grid-cols-5 md:flex md:flex-wrap md:gap-3 gap-2">
-                            {CATEGORIES.map(cat => (
-                                <button type="button" key={cat.id} onClick={() => { setCategoryId(cat.id); if(window.innerWidth > 768 && nameInputRef.current) nameInputRef.current.focus(); }}
+                        {/* 動態分類按鈕 */}
+                        <div className="grid grid-cols-4 md:flex md:flex-wrap md:gap-3 gap-2">
+                            {categories.map(cat => (
+                                <button type="button" key={cat.id} onClick={() => { setCategoryId(cat.id); if (window.innerWidth > 768 && nameInputRef.current) nameInputRef.current.focus(); }}
                                     className={`flex md:flex-row flex-col items-center justify-center md:px-5 md:py-3 py-3 px-1 rounded-xl transition-all border ${categoryId === cat.id ? 'bg-brand-5 text-white border-brand-5 shadow-md' : 'bg-white text-brand-4 border-brand-2/20 hover:border-brand-3 hover:text-brand-3'}`}>
                                     <i className={`${cat.icon} text-xl md:text-base md:mr-2`}></i>
-                                    <span className="text-[10px] md:text-sm font-medium mt-1.5 md:mt-0 whitespace-nowrap">{cat.name}</span>
+                                    <span className="text-[10px] md:text-sm font-medium mt-1.5 md:mt-0 whitespace-nowrap truncate w-full">{cat.name}</span>
                                 </button>
                             ))}
                         </div>
 
                         {/* 攤平的統一輸入卡片 */}
                         <div className="card-panel p-5 md:p-8 flex flex-col gap-6 md:gap-8 relative z-20">
-
                             {/* 第一排：品項與金額 */}
                             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start relative">
                                 <div className="flex-1 w-full relative">
@@ -714,29 +868,18 @@
                                         <label className="block text-xs font-semibold text-brand-4">品項名稱</label>
                                         <span className="text-[10px] text-brand-3/80 font-medium hidden md:inline-block"><i className="fa-solid fa-bolt text-yellow-500 mr-1"></i>Ninja 極速支援：品項 空格 金額 (例: 麥當勞 150)</span>
                                     </div>
-                                    <input
-                                        ref={nameInputRef}
-                                        type="text" required
-                                        value={name}
-                                        onChange={e => setName(e.target.value)}
-                                        onFocus={() => setIsNameFocused(true)}
-                                        onBlur={() => setTimeout(() => setIsNameFocused(false), 200)}
-                                        placeholder="例：50嵐 冰淇淋紅茶 65"
-                                        className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-3.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 font-medium transition-all"
+                                    <input ref={nameInputRef} type="text" required value={name} onChange={e => setName(e.target.value)} onFocus={() => setIsNameFocused(true)} onBlur={() => setTimeout(() => setIsNameFocused(false), 200)}
+                                        placeholder="例：50嵐 冰淇淋紅茶 65" className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-3.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 font-medium transition-all"
                                     />
-
                                     {/* 無腦點餐小抄 Dropdown */}
                                     {isNameFocused && name.trim() !== '' && suggestions.length > 0 && (
                                         <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-brand-5 border border-brand-5 rounded-xl shadow-dropdown z-50 overflow-hidden animate-fade-in flex flex-col max-h-64">
-                                            <div className="text-[10px] text-brand-2 uppercase tracking-widest px-4 py-2 border-b border-brand-4/50 bg-[#151B21]">
-                                                💡 歷史點餐小抄
-                                            </div>
+                                            <div className="text-[10px] text-brand-2 uppercase tracking-widest px-4 py-2 border-b border-brand-4/50 bg-[#151B21]">💡 歷史點餐小抄</div>
                                             <div className="overflow-y-auto custom-scrollbar">
                                                 {suggestions.map((s, idx) => (
                                                     <div key={`${s.id}-${idx}`} onClick={() => applySuggestion(s)} className="p-4 hover:bg-brand-4 cursor-pointer flex justify-between items-center border-b border-brand-4/30 last:border-0 transition-colors">
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-white font-medium">{s.name}</span>
-                                                            {/* 顯示糖冰紀錄 */}
                                                             {s.sugar && s.ice && <span className="text-[10px] text-brand-3 bg-brand-3/20 px-1 rounded">[{s.sugar}/{s.ice}]</span>}
                                                             {s.memo && <span className="text-brand-2 text-xs hidden md:inline">({s.memo})</span>}
                                                             {s.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-xs ml-1"></i>}
@@ -749,7 +892,6 @@
                                         </div>
                                     )}
                                 </div>
-
                                 <div className="md:w-56 shrink-0 w-full">
                                     <label className="block text-xs font-semibold text-brand-4 mb-2">金額 (若前方已輸入可留白)</label>
                                     <div className="relative flex items-center">
@@ -767,10 +909,7 @@
                                         <label className="block text-xs font-semibold text-brand-4 mb-3"><i className="fa-solid fa-cubes-stacked mr-1.5 text-brand-3"></i>甜度</label>
                                         <div className="flex flex-wrap gap-2">
                                             {SUGAR_OPTIONS.map(s => (
-                                                <button type="button" key={s} onClick={() => setSugar(s)}
-                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border shadow-sm active:scale-95 ${sugar === s ? 'bg-brand-3 text-white border-brand-3' : 'bg-white text-brand-4 border-brand-2/30 hover:border-brand-3 hover:text-brand-3'}`}>
-                                                    {s}
-                                                </button>
+                                                <button type="button" key={s} onClick={() => setSugar(s)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border shadow-sm active:scale-95 ${sugar === s ? 'bg-brand-3 text-white border-brand-3' : 'bg-white text-brand-4 border-brand-2/30 hover:border-brand-3 hover:text-brand-3'}`}>{s}</button>
                                             ))}
                                         </div>
                                     </div>
@@ -778,10 +917,7 @@
                                         <label className="block text-xs font-semibold text-brand-4 mb-3"><i className="fa-solid fa-icicles mr-1.5 text-[#697F93]"></i>冰塊</label>
                                         <div className="flex flex-wrap gap-2">
                                             {ICE_OPTIONS.map(i => (
-                                                <button type="button" key={i} onClick={() => setIce(i)}
-                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border shadow-sm active:scale-95 ${ice === i ? 'bg-[#697F93] text-white border-[#697F93]' : 'bg-white text-brand-4 border-brand-2/30 hover:border-[#697F93] hover:text-[#697F93]'}`}>
-                                                    {i}
-                                                </button>
+                                                <button type="button" key={i} onClick={() => setIce(i)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border shadow-sm active:scale-95 ${ice === i ? 'bg-[#697F93] text-white border-[#697F93]' : 'bg-white text-brand-4 border-brand-2/30 hover:border-[#697F93] hover:text-[#697F93]'}`}>{i}</button>
                                             ))}
                                         </div>
                                     </div>
@@ -794,8 +930,6 @@
                                     <div className="flex justify-between items-end mb-3">
                                         <label className="block text-xs font-semibold text-[#A56B5D]"><i className="fa-solid fa-user-group mr-1.5 opacity-70"></i>代墊人 (選填)</label>
                                     </div>
-
-                                    {/* 常駐代墊人 */}
                                     {recentPayers.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mb-3">
                                             {recentPayers.map(p => (
@@ -805,24 +939,20 @@
                                             ))}
                                         </div>
                                     )}
-
                                     <input type="text" value={payer} onChange={e => setPayer(e.target.value)} placeholder="手動輸入同事名字"
                                         className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-3.5 text-brand-5 focus:border-[#A56B5D] focus:ring-1 focus:ring-[#A56B5D] outline-none placeholder:text-brand-2 text-sm transition-all" />
                                 </div>
-
                                 <div className="flex-1 flex flex-col">
                                     <label className="block text-xs font-semibold text-brand-4 mb-3"><i className="fa-solid fa-pen-to-square mr-1.5 opacity-70"></i>{isDrink ? '配料加點與評價' : '備註與評價 (選填)'}</label>
                                     <div className="flex gap-2 h-[50px]">
                                         <input type="text" value={memo} onChange={e => setMemo(e.target.value)} placeholder={isDrink ? "例：+白玉波霸" : "例：微糖少冰"}
                                             className="flex-1 bg-white border border-brand-2/40 rounded-xl px-4 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 text-sm transition-all" />
-                                        <button type="button" onClick={()=>setRating(rating===1?0:1)} className={`w-[50px] shrink-0 rounded-xl border transition-all text-base flex items-center justify-center shadow-sm ${rating===1?'bg-brand-5 text-white border-brand-5':'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-up"></i></button>
-                                        <button type="button" onClick={()=>setRating(rating===-1?0:-1)} className={`w-[50px] shrink-0 rounded-xl border transition-all text-base flex items-center justify-center shadow-sm ${rating===-1?'bg-[#A56B5D] text-white border-[#A56B5D]':'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-[#A56B5D] hover:text-[#A56B5D]'}`}><i className="fa-solid fa-thumbs-down"></i></button>
+                                        <button type="button" onClick={() => setRating(rating === 1 ? 0 : 1)} className={`w-[50px] shrink-0 rounded-xl border transition-all text-base flex items-center justify-center shadow-sm ${rating === 1 ? 'bg-brand-5 text-white border-brand-5' : 'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-up"></i></button>
+                                        <button type="button" onClick={() => setRating(rating === -1 ? 0 : -1)} className={`w-[50px] shrink-0 rounded-xl border transition-all text-base flex items-center justify-center shadow-sm ${rating === -1 ? 'bg-[#A56B5D] text-white border-[#A56B5D]' : 'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-[#A56B5D] hover:text-[#A56B5D]'}`}><i className="fa-solid fa-thumbs-down"></i></button>
                                     </div>
                                 </div>
                             </div>
-
                         </div>
-
                         {/* 送出按鈕 */}
                         <div className="pt-2 md:pt-4">
                             <button type="submit" className="w-full md:w-auto md:min-w-[240px] md:ml-auto bg-brand-5 text-white font-semibold text-base py-4 px-8 rounded-xl shadow-premium hover:shadow-premium-hover hover:bg-brand-4 transition-all flex justify-center items-center gap-2 active:scale-[0.98]">
@@ -835,36 +965,28 @@
         }
 
         // --- 2. 總覽儀表板 (Dashboard View) ---
-        function DashboardView({ todayTotal, viewMonthTotal, thisWeekTotal, budget, budgetType, quota, addonThisWeek, debtsByPerson, payDebt, viewMonth, onPrevMonth, onNextMonth }) {
+        function DashboardView({ todayTotal, viewMonthTotal, thisWeekTotal, settings, goalCurrentVal, categories, debtsByPerson, payDebt, viewMonth, onPrevMonth, onNextMonth }) {
             let currentTotal = viewMonthTotal;
             let budgetLabel = '預算使用率 (該月)';
 
-            if (budgetType === 'daily') {
-                currentTotal = todayTotal;
-                budgetLabel = '預算使用率 (今日)';
-            } else if (budgetType === 'weekly') {
-                currentTotal = thisWeekTotal;
-                budgetLabel = '預算使用率 (本週)';
+            if (settings.budgetType === 'daily') {
+                currentTotal = todayTotal; budgetLabel = '預算使用率 (今日)';
+            } else if (settings.budgetType === 'weekly') {
+                currentTotal = thisWeekTotal; budgetLabel = '預算使用率 (本週)';
             }
 
-            const isOverBudget = currentTotal > budget;
-            const quotaIcons = Array.from({length: Math.max(quota, addonThisWeek)}, (_, i) =>
-                <i key={i} className={`fa-solid fa-mug-hot text-2xl mx-1 ${i < addonThisWeek ? 'text-brand-2/30' : 'text-brand-3'}`} title={i < addonThisWeek ? "已喝" : "可喝"}></i>
+            const isOverBudget = currentTotal > settings.budget;
+            const targetCatName = categories.find(c => c.id === settings.goalCategory)?.name || '目標';
+
+            const goalIcons = Array.from({ length: Math.max(settings.goalLimit, goalCurrentVal) }, (_, i) =>
+                <i key={i} className={`fa-solid fa-bullseye text-2xl mx-1 ${i < goalCurrentVal ? 'text-brand-2/30' : 'text-brand-3'}`} title={i < goalCurrentVal ? "已達標" : "剩餘扣打"}></i>
             );
 
             const [copiedPerson, setCopiedPerson] = useState(null);
-
             const handleCopyMessage = (person, data) => {
                 const message = `Hi ${person}，我還欠你 $${data.total} (${data.items.join(', ')})，我等等轉給你喔！`;
-                const textArea = document.createElement("textarea");
-                textArea.value = message;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    setCopiedPerson(person);
-                    setTimeout(() => setCopiedPerson(null), 2000);
-                } catch (err) { console.error('複製失敗', err); }
+                const textArea = document.createElement("textarea"); textArea.value = message; document.body.appendChild(textArea); textArea.select();
+                try { document.execCommand('copy'); setCopiedPerson(person); setTimeout(() => setCopiedPerson(null), 2000); } catch (err) { }
                 document.body.removeChild(textArea);
             };
 
@@ -914,28 +1036,31 @@
                         <div className="card-panel p-6 flex flex-col justify-center">
                             <div className="flex justify-between text-xs font-medium mb-3 uppercase tracking-wider">
                                 <span className="text-brand-4">{budgetLabel}</span>
-                                <span className={isOverBudget ? 'text-[#A56B5D]' : 'text-brand-4'}>${currentTotal} / ${budget}</span>
+                                <span className={isOverBudget ? 'text-[#A56B5D]' : 'text-brand-4'}>${currentTotal} / ${settings.budget}</span>
                             </div>
                             <div className="w-full bg-brand-1/50 rounded-full h-2.5 overflow-hidden mb-3">
-                                <div className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-[#A56B5D]' : 'bg-brand-3'}`} style={{ width: `${Math.min(100, (currentTotal / budget) * 100)}%` }}></div>
+                                <div className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-[#A56B5D]' : 'bg-brand-3'}`} style={{ width: `${Math.min(100, (currentTotal / settings.budget) * 100)}%` }}></div>
                             </div>
                             {isOverBudget && <p className="text-[10px] text-[#A56B5D] font-bold text-right">已超支警示</p>}
                         </div>
                     </div>
 
-                    <div className="card-panel p-6 md:p-8 text-center flex flex-col items-center justify-center">
-                        <h3 className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-6"><i className="fa-solid fa-glass-water mr-2 opacity-70"></i>本週加料飲品額度</h3>
-                        <div className="flex justify-center flex-wrap mb-4">{quotaIcons}</div>
-                        <p className="text-xs text-brand-4 font-medium bg-brand-1/30 px-4 py-2 rounded-lg inline-block">
-                            {addonThisWeek >= quota ? '額度已用盡，為了健康請克制' : `本週剩餘 ${Math.max(0, quota - addonThisWeek)} 杯額度`}
-                        </p>
-                    </div>
+                    {/* 自訂目標模組 (如果開啟才顯示) */}
+                    {settings.goalEnabled && (
+                        <div className="card-panel p-6 md:p-8 text-center flex flex-col items-center justify-center">
+                            <h3 className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-6"><i className="fa-solid fa-crosshairs mr-2 opacity-70"></i>{settings.goalPeriod === 'weekly' ? '本週' : '本月'} {targetCatName} 扣打</h3>
+                            <div className="flex justify-center flex-wrap mb-4">{goalIcons}</div>
+                            <p className="text-xs text-brand-4 font-medium bg-brand-1/30 px-4 py-2 rounded-lg inline-block">
+                                {goalCurrentVal >= settings.goalLimit ? '額度已用盡，為了錢包與健康請克制' : `本階段剩餘 ${Math.max(0, settings.goalLimit - goalCurrentVal)} 次扣打`}
+                            </p>
+                        </div>
+                    )}
                 </div>
             );
         }
 
         // --- 可視化日曆 (Calendar View) ---
-        function CalendarView({ viewMonth, onPrevMonth, onNextMonth, records, deleteRecord, updateRecord, budget, budgetType, holidays }) {
+        function CalendarView({ viewMonth, onPrevMonth, onNextMonth, records, deleteRecord, updateRecord, categories, settings, holidays }) {
             const [mode, setMode] = useState('money');
             const [selectedDate, setSelectedDate] = useState(null);
             const [editingRecord, setEditingRecord] = useState(null);
@@ -945,14 +1070,12 @@
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const firstDayOfWeek = new Date(year, month, 1).getDay();
 
-            let dailyBudget = budget;
-            if (budgetType === 'weekly') dailyBudget = Math.round(budget / 7);
-            if (budgetType === 'monthly') dailyBudget = Math.round(budget / 30);
+            let dailyBudget = settings.budget;
+            if (settings.budgetType === 'weekly') dailyBudget = Math.round(settings.budget / 7);
+            if (settings.budgetType === 'monthly') dailyBudget = Math.round(settings.budget / 30);
 
             const gridCells = [];
-            for (let i = 0; i < firstDayOfWeek; i++) {
-                gridCells.push(null);
-            }
+            for (let i = 0; i < firstDayOfWeek; i++) { gridCells.push(null); }
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateTimestamp = new Date(year, month, day).getTime();
                 const nextDayTimestamp = new Date(year, month, day + 1).getTime();
@@ -967,26 +1090,17 @@
 
                 gridCells.push({ day, dateTimestamp, totalSpent, drinks, dayRecords, dateStr, dayOfWeek });
             }
-
-            const todayTimestamp = new Date(new Date().setHours(0,0,0,0)).getTime();
+            const todayTimestamp = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
 
             return (
                 <div className="flex flex-col gap-6 animate-fade-in pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-4">
-                        <h2 className="text-2xl font-bold text-brand-5 tracking-tight flex items-center gap-2">
-                            <i className="fa-solid fa-calendar-days text-brand-3"></i> 可視化日曆
-                        </h2>
-
+                        <h2 className="text-2xl font-bold text-brand-5 tracking-tight flex items-center gap-2"><i className="fa-solid fa-calendar-days text-brand-3"></i> 可視化日曆</h2>
                         <div className="flex bg-brand-1/40 p-1 rounded-xl shadow-inner w-full md:w-auto">
-                            <button onClick={() => setMode('money')} className={`flex-1 md:w-32 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'money' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>
-                                <i className="fa-solid fa-sack-dollar mr-1.5"></i> 荷包模式
-                            </button>
-                            <button onClick={() => setMode('drink')} className={`flex-1 md:w-32 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'drink' ? 'bg-brand-5 text-white shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>
-                                <i className="fa-solid fa-mug-hot mr-1.5"></i> 飲料地圖
-                            </button>
+                            <button onClick={() => setMode('money')} className={`flex-1 md:w-32 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'money' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}><i className="fa-solid fa-sack-dollar mr-1.5"></i> 荷包模式</button>
+                            <button onClick={() => setMode('drink')} className={`flex-1 md:w-32 py-2 text-sm font-semibold rounded-lg transition-all ${mode === 'drink' ? 'bg-brand-5 text-white shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}><i className="fa-solid fa-mug-hot mr-1.5"></i> 飲料地圖</button>
                         </div>
                     </div>
-
                     <MonthNavigator viewMonth={viewMonth} onPrev={onPrevMonth} onNext={onNextMonth} />
 
                     <div className="card-panel p-4 md:p-6">
@@ -998,25 +1112,17 @@
                         <div className="grid grid-cols-7 gap-1 md:gap-2">
                             {gridCells.map((cell, idx) => {
                                 if (!cell) return <div key={`empty-${idx}`} className="bg-brand-1/10 rounded-xl"></div>;
-
                                 const isToday = cell.dateTimestamp === todayTimestamp;
                                 const hasOverspent = mode === 'money' && cell.totalSpent > dailyBudget * 1.5;
                                 const hasDrinks = mode === 'drink' && cell.drinks.length > 0;
-
-                                // 判斷台灣節日與補班邏輯
                                 const hInfo = holidays[cell.dateStr];
                                 let isDayOff = cell.dayOfWeek === 0 || cell.dayOfWeek === 6;
-                                let holidayName = null;
-                                let isMakeup = false;
+                                let holidayName = null; let isMakeup = false;
 
                                 if (hInfo) {
                                     isDayOff = hInfo.isHoliday;
-                                    if (hInfo.isHoliday && hInfo.description !== '星期六' && hInfo.description !== '星期日') {
-                                        holidayName = hInfo.description;
-                                    }
-                                    if (!hInfo.isHoliday && (cell.dayOfWeek === 0 || cell.dayOfWeek === 6)) {
-                                        isMakeup = true;
-                                    }
+                                    if (hInfo.isHoliday && hInfo.description !== '星期六' && hInfo.description !== '星期日') holidayName = hInfo.description;
+                                    if (!hInfo.isHoliday && (cell.dayOfWeek === 0 || cell.dayOfWeek === 6)) isMakeup = true;
                                 }
 
                                 let bgClass = "bg-white border border-brand-2/20 hover:border-brand-3/50";
@@ -1025,30 +1131,14 @@
                                 if (isToday) bgClass += " ring-2 ring-brand-3";
 
                                 return (
-                                    <div key={cell.day} onClick={() => setSelectedDate(cell)}
-                                        className={`${bgClass} rounded-xl p-1 md:p-2 flex flex-col items-center justify-start aspect-square md:aspect-auto md:h-24 cursor-pointer transition-all active:scale-95 calendar-cell-anim`}
-                                        style={{ animationDelay: `${idx * 10}ms` }}
-                                    >
-                                        <span className={`text-xs md:text-sm font-bold mb-0.5 ${isToday ? 'text-brand-3' : (isDayOff ? 'text-[#A56B5D]' : 'text-brand-5')}`}>
-                                            {cell.day}
-                                        </span>
-
-                                        {/* 節日與補班標籤 */}
+                                    <div key={cell.day} onClick={() => setSelectedDate(cell)} className={`${bgClass} rounded-xl p-1 md:p-2 flex flex-col items-center justify-start aspect-square md:aspect-auto md:h-24 cursor-pointer transition-all active:scale-95 calendar-cell-anim`} style={{ animationDelay: `${idx * 10}ms` }}>
+                                        <span className={`text-xs md:text-sm font-bold mb-0.5 ${isToday ? 'text-brand-3' : (isDayOff ? 'text-[#A56B5D]' : 'text-brand-5')}`}>{cell.day}</span>
                                         {holidayName && <span className="text-[8px] md:text-[10px] text-[#A56B5D] bg-[#FDF3F3] px-1 rounded truncate max-w-[95%] mb-0.5 text-center leading-tight shadow-sm border border-[#E8D1D1]">{holidayName}</span>}
                                         {isMakeup && <span className="text-[8px] md:text-[10px] text-brand-5 bg-brand-2/20 px-1 rounded truncate max-w-[95%] mb-0.5 text-center leading-tight shadow-sm border border-brand-2/30">💼 補班</span>}
 
                                         <div className="flex flex-col items-center justify-center w-full flex-1 overflow-hidden mt-0.5">
-                                            {mode === 'money' && cell.totalSpent > 0 && (
-                                                <span className={`text-[10px] md:text-sm font-bold ${hasOverspent ? 'text-[#A56B5D]' : 'text-brand-4'}`}>
-                                                    ${cell.totalSpent}
-                                                </span>
-                                            )}
-
-                                            {mode === 'drink' && cell.drinks.map((drink, i) => (
-                                                <span key={i} className="text-[8px] md:text-xs text-brand-5 bg-brand-1/40 px-1 py-0.5 rounded mb-0.5 truncate w-full text-center max-w-[90%] font-medium">
-                                                    {drink}
-                                                </span>
-                                            ))}
+                                            {mode === 'money' && cell.totalSpent > 0 && <span className={`text-[10px] md:text-sm font-bold ${hasOverspent ? 'text-[#A56B5D]' : 'text-brand-4'}`}>${cell.totalSpent}</span>}
+                                            {mode === 'drink' && cell.drinks.map((drink, i) => <span key={i} className="text-[8px] md:text-xs text-brand-5 bg-brand-1/40 px-1 py-0.5 rounded mb-0.5 truncate w-full text-center max-w-[90%] font-medium">{drink}</span>)}
                                         </div>
                                     </div>
                                 )
@@ -1057,25 +1147,20 @@
                     </div>
 
                     {selectedDate && !editingRecord && (
-                        <div className="fixed inset-0 bg-brand-5/60 backdrop-blur-sm z-[90] flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in" onClick={(e) => { if(e.target === e.currentTarget) setSelectedDate(null); }}>
+                        <div className="fixed inset-0 bg-brand-5/60 backdrop-blur-sm z-[90] flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setSelectedDate(null); }}>
                             <div className="bg-white rounded-t-[2rem] md:rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] animate-fade-in">
                                 <div className="px-6 py-5 border-b border-brand-1/50 flex justify-between items-center bg-[#FAF7F2]">
                                     <div>
-                                        <h3 className="font-bold text-brand-5 text-lg">
-                                            {new Date(selectedDate.dateTimestamp).getMonth() + 1}月{selectedDate.day}日 明細
-                                        </h3>
+                                        <h3 className="font-bold text-brand-5 text-lg">{new Date(selectedDate.dateTimestamp).getMonth() + 1}月{selectedDate.day}日 明細</h3>
                                         <p className="text-xs text-brand-4 font-medium mt-1">當日總計：<span className="text-[#A56B5D] font-bold">${selectedDate.totalSpent}</span></p>
                                     </div>
                                     <button onClick={() => setSelectedDate(null)} className="w-8 h-8 bg-white rounded-full text-brand-4 hover:text-brand-5 shadow-sm flex items-center justify-center transition-colors"><i className="fa-solid fa-xmark"></i></button>
                                 </div>
-
                                 <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar flex-1 bg-brand-1/10">
                                     <div className="space-y-3">
-                                        {selectedDate.dayRecords.length === 0 ? (
-                                            <p className="text-center text-brand-2 text-sm py-10 font-medium">這天沒有花半毛錢，太神啦！</p>
-                                        ) : (
-                                            selectedDate.dayRecords.sort((a,b)=>b.date-a.date).map(record => {
-                                                const cat = CATEGORIES.find(c => c.id === record.categoryId);
+                                        {selectedDate.dayRecords.length === 0 ? (<p className="text-center text-brand-2 text-sm py-10 font-medium">這天沒有花半毛錢，太神啦！</p>) : (
+                                            selectedDate.dayRecords.sort((a, b) => b.date - a.date).map(record => {
+                                                const cat = categories.find(c => c.id === record.categoryId) || categories[0];
                                                 return (
                                                     <div key={record.id} className="bg-white p-4 rounded-xl flex items-center justify-between group border border-brand-2/20 shadow-sm">
                                                         <div className="flex items-center gap-3">
@@ -1092,10 +1177,7 @@
                                                         <div className="flex items-center gap-1">
                                                             <span className="font-bold text-brand-5 text-sm md:text-base mr-2">${record.price}</span>
                                                             <button onClick={() => setEditingRecord(record)} className="text-brand-3 p-2 hover:bg-brand-1/60 rounded-lg transition-colors"><i className="fa-solid fa-pen text-sm"></i></button>
-                                                            <button onClick={() => {
-                                                                deleteRecord(record.id);
-                                                                setSelectedDate(prev => ({...prev, dayRecords: prev.dayRecords.filter(r => r.id !== record.id), totalSpent: prev.totalSpent - record.price}));
-                                                            }} className="text-brand-2 p-2 hover:text-[#A56B5D] hover:bg-[#FDF3F3] rounded-lg transition-colors"><i className="fa-solid fa-trash-can text-sm"></i></button>
+                                                            <button onClick={() => { deleteRecord(record.id); setSelectedDate(prev => ({ ...prev, dayRecords: prev.dayRecords.filter(r => r.id !== record.id), totalSpent: prev.totalSpent - record.price })); }} className="text-brand-2 p-2 hover:text-[#A56B5D] hover:bg-[#FDF3F3] rounded-lg transition-colors"><i className="fa-solid fa-trash-can text-sm"></i></button>
                                                         </div>
                                                     </div>
                                                 )
@@ -1106,160 +1188,117 @@
                             </div>
                         </div>
                     )}
-
-                    {editingRecord && (
-                        <EditModal
-                            record={editingRecord}
-                            onClose={() => setEditingRecord(null)}
-                            onSave={(updatedRecord) => {
-                                updateRecord(updatedRecord);
-                                setEditingRecord(null);
-                                setSelectedDate(null);
-                            }}
-                        />
-                    )}
+                    {editingRecord && (<EditModal record={editingRecord} categories={categories} onClose={() => setEditingRecord(null)} onSave={(updatedRecord) => { updateRecord(updatedRecord); setEditingRecord(null); setSelectedDate(null); }} />)}
                 </div>
             );
         }
 
-        // --- 3. 歷史與報表 (History View) - 升級三維度報表系統 ---
-        function HistoryView({ records, deleteRecord, updateRecord, viewMonth, onPrevMonth, onNextMonth, holidays }) {
+        // --- 3. 歷史與報表 (History View) ---
+        function HistoryView({ records, categories, settings, deleteRecord, updateRecord, viewMonth, onPrevMonth, onNextMonth, holidays }) {
             const [searchTerm, setSearchTerm] = useState('');
             const [editingRecord, setEditingRecord] = useState(null);
-
-            // 控制群組折疊狀態
             const [collapsedGroups, setCollapsedGroups] = useState({});
-            const toggleGroup = (groupName) => {
-                setCollapsedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
-            };
+            const toggleGroup = (groupName) => { setCollapsedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] })); };
 
-            // 時間維度狀態 (monthly, yearly, custom)
             const [timeScale, setTimeScale] = useState('monthly');
             const [viewYear, setViewYear] = useState(() => viewMonth.getFullYear());
-            const [customStart, setCustomStart] = useState(() => {
-                const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split('T')[0];
-            });
+            const [customStart, setCustomStart] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split('T')[0]; });
             const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().split('T')[0]);
 
-            // 過濾 records
             const filteredRecords = useMemo(() => {
                 if (timeScale === 'monthly') {
-                    const start = viewMonth.getTime();
-                    const end = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+                    const start = viewMonth.getTime(); const end = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
                     return records.filter(r => r.date >= start && r.date <= end);
                 } else if (timeScale === 'yearly') {
-                    const start = new Date(viewYear, 0, 1).getTime();
-                    const end = new Date(viewYear, 11, 31, 23, 59, 59, 999).getTime();
+                    const start = new Date(viewYear, 0, 1).getTime(); const end = new Date(viewYear, 11, 31, 23, 59, 59, 999).getTime();
                     return records.filter(r => r.date >= start && r.date <= end);
                 } else {
-                    const start = new Date(customStart).getTime();
-                    const end = new Date(customEnd).getTime() + (23*3600*1000 + 59*60*1000 + 59*1000 + 999);
+                    const start = new Date(customStart).getTime(); const end = new Date(customEnd).getTime() + (23 * 3600 * 1000 + 59 * 60 * 1000 + 59 * 1000 + 999);
                     return records.filter(r => r.date >= start && r.date <= end);
                 }
             }, [records, timeScale, viewMonth, viewYear, customStart, customEnd]);
 
-            const sortedRecords = [...filteredRecords].sort((a,b) => b.date - a.date);
-            const displayRecords = sortedRecords.filter(r =>
-                r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (r.payer && r.payer.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (r.memo && r.memo.toLowerCase().includes(searchTerm.toLowerCase()))
-            );
+            const sortedRecords = [...filteredRecords].sort((a, b) => b.date - a.date);
+            const displayRecords = sortedRecords.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()) || (r.payer && r.payer.toLowerCase().includes(searchTerm.toLowerCase())) || (r.memo && r.memo.toLowerCase().includes(searchTerm.toLowerCase())));
 
-            // 計算圖表與戰報
             const catStats = filteredRecords.reduce((acc, curr) => { acc[curr.categoryId] = (acc[curr.categoryId] || 0) + Number(curr.price); return acc; }, {});
-            const topItems = Object.entries(filteredRecords.reduce((acc, curr) => { acc[curr.name] = (acc[curr.name] || 0) + 1; return acc; }, {})).sort((a,b) => b[1] - a[1]).slice(0, 3);
+            const topItems = Object.entries(filteredRecords.reduce((acc, curr) => { acc[curr.name] = (acc[curr.name] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 3);
             const totalExpense = filteredRecords.reduce((sum, r) => sum + r.price, 0);
 
-            // 新增：計算工作日平均花費 (扣除國定假日、包含補班日)
-            const workingDayAvg = useMemo(() => {
+            // 平均花費計算：依照使用者的設定切換 (workdays 或是 alldays)
+            const dynamicAvg = useMemo(() => {
                 if (filteredRecords.length === 0) return 0;
 
                 const isWorkingDay = (timestamp) => {
                     const d = new Date(timestamp);
-                    const dateStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-                    if (holidays && holidays[dateStr]) {
-                        return !holidays[dateStr].isHoliday;
-                    }
-                    const day = d.getDay();
-                    return day >= 1 && day <= 5;
+                    const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+                    if (holidays && holidays[dateStr]) return !holidays[dateStr].isHoliday;
+                    const day = d.getDay(); return day >= 1 && day <= 5;
                 };
 
-                let workingDayTotal = 0;
+                let validTotal = 0;
                 filteredRecords.forEach(r => {
-                    if (isWorkingDay(r.date)) workingDayTotal += r.price;
+                    if (settings.avgCalcMethod === 'all_days' || isWorkingDay(r.date)) validTotal += r.price;
                 });
 
                 const startTimestamp = Math.min(...filteredRecords.map(r => r.date));
                 if (!startTimestamp || !isFinite(startTimestamp)) return 0;
 
                 let current = new Date(timeScale === 'monthly' ? viewMonth.getTime() : startTimestamp);
-
                 let endLimit = Date.now();
                 if (timeScale === 'monthly') endLimit = Math.min(Date.now(), new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getTime());
                 else if (timeScale === 'yearly') endLimit = Math.min(Date.now(), new Date(viewYear, 11, 31, 23, 59, 59, 999).getTime());
                 else endLimit = Math.min(Date.now(), new Date(customEnd).getTime() + 86399999);
 
                 const endDate = new Date(endLimit);
+                current.setHours(0, 0, 0, 0); endDate.setHours(23, 59, 59, 999);
 
-                current.setHours(0,0,0,0);
-                endDate.setHours(23,59,59,999);
-
-                let weekdaysCount = 0;
+                let validDaysCount = 0;
                 while (current <= endDate) {
-                    if (isWorkingDay(current.getTime())) weekdaysCount++;
+                    if (settings.avgCalcMethod === 'all_days' || isWorkingDay(current.getTime())) validDaysCount++;
                     current.setDate(current.getDate() + 1);
                 }
-
-                return weekdaysCount > 0 ? Math.round(workingDayTotal / weekdaysCount) : 0;
-            }, [filteredRecords, timeScale, viewMonth, viewYear, customEnd, holidays]);
+                return validDaysCount > 0 ? Math.round(validTotal / validDaysCount) : 0;
+            }, [filteredRecords, timeScale, viewMonth, viewYear, customEnd, holidays, settings.avgCalcMethod]);
 
             const drinkReport = useMemo(() => {
                 const drinks = filteredRecords.filter(r => DRINK_CATEGORIES.includes(r.categoryId));
                 const shopStats = {};
-
                 drinks.forEach(r => {
                     const parts = r.name.trim().split(' ');
                     const shop = parts.length > 1 ? parts[0] : (r.name || '未命名飲料');
                     const item = parts.length > 1 ? parts.slice(1).join(' ') : '單品';
-
                     if (!shopStats[shop]) shopStats[shop] = { total: 0, count: 0, items: {} };
-                    shopStats[shop].total += r.price;
-                    shopStats[shop].count += 1;
-
+                    shopStats[shop].total += r.price; shopStats[shop].count += 1;
                     const itemKey = `${item}${r.sugar && r.ice ? ` (${r.sugar}/${r.ice})` : ''}`;
                     shopStats[shop].items[itemKey] = (shopStats[shop].items[itemKey] || 0) + 1;
                 });
-
-                return Object.entries(shopStats)
-                    .sort((a, b) => b[1].total - a[1].total)
-                    .slice(0, 3)
-                    .map(([shopName, stats]) => {
-                        const topItem = Object.entries(stats.items).sort((a, b) => b[1] - a[1])[0];
-                        return { shopName, total: stats.total, count: stats.count, topItem: topItem ? topItem[0] : '無' };
-                    });
+                return Object.entries(shopStats).sort((a, b) => b[1].total - a[1].total).slice(0, 3).map(([shopName, stats]) => {
+                    const topItem = Object.entries(stats.items).sort((a, b) => b[1] - a[1])[0];
+                    return { shopName, total: stats.total, count: stats.count, topItem: topItem ? topItem[0] : '無' };
+                });
             }, [filteredRecords]);
 
-            // 年度/區間的明細群組化收納
             const groupedRecords = useMemo(() => {
                 if (timeScale === 'monthly') return { '該月明細': displayRecords };
-
                 const groups = {};
                 displayRecords.forEach(r => {
                     const d = new Date(r.date);
-                    const key = `${d.getFullYear()}年${d.getMonth()+1}月`;
-                    if(!groups[key]) groups[key] = [];
+                    const key = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+                    if (!groups[key]) groups[key] = [];
                     groups[key].push(r);
                 });
                 return groups;
             }, [displayRecords, timeScale]);
 
             const reportTitle = timeScale === 'yearly' ? `${viewYear} 年度` : (timeScale === 'monthly' ? '該月' : '指定期間');
+            const avgLabel = settings.avgCalcMethod === 'workdays' ? '工作日平均' : '每日平均';
+            const avgIcon = settings.avgCalcMethod === 'workdays' ? 'fa-briefcase' : 'fa-calendar-day';
 
             return (
                 <div className="flex flex-col gap-6 animate-fade-in h-full pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
                         <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight">歷史與報表</h2>
-
                         <div className="flex bg-brand-1/40 p-1 rounded-xl shadow-inner w-full md:w-auto">
                             <button onClick={() => setTimeScale('monthly')} className={`flex-1 md:w-24 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'monthly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>月度</button>
                             <button onClick={() => setTimeScale('yearly')} className={`flex-1 md:w-24 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'yearly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>年度</button>
@@ -1270,16 +1309,16 @@
                     {timeScale === 'monthly' && <MonthNavigator viewMonth={viewMonth} onPrev={onPrevMonth} onNext={onNextMonth} />}
                     {timeScale === 'yearly' && (
                         <div className="flex items-center justify-between card-panel px-4 py-3 mb-6 w-full max-w-sm mx-auto md:mx-0">
-                            <button onClick={()=>setViewYear(y=>y-1)} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-left text-sm"></i></button>
+                            <button onClick={() => setViewYear(y => y - 1)} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-left text-sm"></i></button>
                             <span className="font-bold text-brand-5 text-base flex items-center gap-2"><i className="fa-regular fa-calendar text-brand-3"></i> {viewYear} 年度</span>
-                            <button onClick={()=>setViewYear(y=>y+1)} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-right text-sm"></i></button>
+                            <button onClick={() => setViewYear(y => y + 1)} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-right text-sm"></i></button>
                         </div>
                     )}
                     {timeScale === 'custom' && (
                         <div className="flex items-center gap-2 card-panel px-4 py-3 mb-6 w-full max-w-sm mx-auto md:mx-0">
-                            <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} className="bg-transparent text-sm font-bold text-brand-5 outline-none w-full" />
+                            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-transparent text-sm font-bold text-brand-5 outline-none w-full" />
                             <span className="text-brand-2">~</span>
-                            <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} className="bg-transparent text-sm font-bold text-brand-5 outline-none w-full" />
+                            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-transparent text-sm font-bold text-brand-5 outline-none w-full" />
                         </div>
                     )}
 
@@ -1287,49 +1326,43 @@
                         {/* 左欄：圖表與排行榜 */}
                         <div className="w-full lg:w-[35%] flex flex-col gap-6 lg:sticky lg:top-0">
                             <div className="card-panel p-6 flex flex-col items-center w-full relative overflow-hidden">
-                                {/* 總花費摘要 */}
                                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-brand-3/10 rounded-full blur-xl"></div>
                                 <h3 className="text-sm font-semibold text-brand-5 mb-2 w-full text-left">{reportTitle}總花費</h3>
                                 <p className="text-3xl font-bold text-brand-5 w-full text-left mb-3">${totalExpense.toLocaleString()}</p>
 
-                                {/* 新增：工作日平均花費 */}
+                                {/* 根據設定動態顯示平均 */}
                                 <div className="w-full text-left mb-6 pb-4 border-b border-brand-1/50">
                                     <span className="text-xs font-semibold text-brand-4 bg-brand-1/30 px-3 py-1.5 rounded-lg shadow-sm">
-                                        <i className="fa-solid fa-briefcase mr-1.5 text-brand-3"></i>
-                                        工作日平均：${workingDayAvg.toLocaleString()} / 天
+                                        <i className={`fa-solid ${avgIcon} mr-1.5 text-brand-3`}></i>
+                                        {avgLabel}：${dynamicAvg.toLocaleString()} / 天
                                     </span>
                                 </div>
 
                                 {Object.keys(catStats).length > 0 ? (
                                     <>
-                                        <PieChart catStats={catStats} />
-
-                                        {timeScale !== 'monthly' && (
-                                            <TrendBarChart records={filteredRecords} scale={timeScale} />
-                                        )}
-
+                                        <PieChart catStats={catStats} categories={categories} />
+                                        {timeScale !== 'monthly' && <TrendBarChart records={filteredRecords} scale={timeScale} />}
                                         <div className="flex flex-col w-full gap-2 mt-6">
-                                            {Object.entries(catStats).sort((a,b)=>b[1]-a[1]).map(([catId, amount], index) => (
-                                                <div key={catId} className="flex items-center justify-between text-xs py-1.5 border-b border-brand-1/50 last:border-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
-                                                        <span className="text-brand-5">{CATEGORIES.find(c => c.id === catId)?.name}</span>
+                                            {Object.entries(catStats).sort((a, b) => b[1] - a[1]).map(([catId, amount], index) => {
+                                                const catName = categories.find(c => c.id === catId)?.name || catId;
+                                                return (
+                                                    <div key={catId} className="flex items-center justify-between text-xs py-1.5 border-b border-brand-1/50 last:border-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                                                            <span className="text-brand-5">{catName}</span>
+                                                        </div>
+                                                        <span className="font-semibold text-brand-4">${amount.toLocaleString()}</span>
                                                     </div>
-                                                    <span className="font-semibold text-brand-4">${amount.toLocaleString()}</span>
-                                                </div>
-                                            ))}
+                                                )
+                                            })}
                                         </div>
                                     </>
-                                ) : (
-                                    <div className="py-12 text-brand-2 text-sm flex flex-col items-center gap-3"><i className="fa-solid fa-chart-pie text-3xl opacity-50"></i> 尚無資料</div>
-                                )}
+                                ) : (<div className="py-12 text-brand-2 text-sm flex flex-col items-center gap-3"><i className="fa-solid fa-chart-pie text-3xl opacity-50"></i> 尚無資料</div>)}
                             </div>
 
                             {drinkReport.length > 0 && (
                                 <div className="card-panel p-6 w-full bg-gradient-to-br from-white to-brand-1/20 border-brand-3/20">
-                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2">
-                                        <i className="fa-solid fa-trophy text-[#A56B5D]"></i> {reportTitle}手搖飲金賞
-                                    </h3>
+                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-trophy text-[#A56B5D]"></i> {reportTitle}手搖飲金賞</h3>
                                     <div className="space-y-4">
                                         {drinkReport.map((shop, index) => (
                                             <div key={shop.shopName} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0">
@@ -1337,29 +1370,15 @@
                                                     <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
                                                     <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}杯)</span></span>
                                                 </div>
-                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50">
-                                                    必點：{shop.topItem}
-                                                </div>
+                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50">必點：{shop.topItem}</div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
-
-                            {topItems.length > 0 && (
-                                <div className="card-panel p-6 w-full hidden lg:block">
-                                    <h3 className="text-sm font-semibold text-brand-5 mb-4">常客 Top 3</h3>
-                                    {topItems.map(([name, count], index) => (
-                                        <div key={name} className="flex justify-between items-center py-2.5 border-b border-brand-1/50 last:border-0">
-                                            <span className="text-sm text-brand-4"><span className="w-5 inline-block text-brand-3 font-bold">{index+1}.</span> {name}</span>
-                                            <span className="text-xs text-brand-3 font-semibold">{count} 次</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </div>
 
-                        {/* 右欄：明細列表 */}
+                        {/* 右欄：明細列表 (群組化) */}
                         <div className="w-full lg:w-[65%] card-panel p-6">
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                                 <h3 className="text-sm font-semibold text-brand-5 whitespace-nowrap"><i className="fa-solid fa-list-check mr-2 text-brand-3"></i>消費明細清單</h3>
@@ -1373,73 +1392,59 @@
                             <div className="space-y-6">
                                 {displayRecords.length === 0 && <p className="text-center text-brand-2 text-sm py-12">沒有找到符合的紀錄</p>}
 
-                                {/* 渲染群組化明細 */}
                                 {Object.entries(groupedRecords).map(([groupName, groupRecords]) => {
                                     const isCollapsed = collapsedGroups[groupName];
                                     return (
-                                    <div key={groupName} className="mb-2">
-                                        {/* 折疊按鈕 */}
-                                        {timeScale !== 'monthly' && (
-                                            <div
-                                                onClick={() => toggleGroup(groupName)}
-                                                className="flex items-center justify-between cursor-pointer bg-brand-1/30 hover:bg-brand-1/50 px-4 py-2.5 rounded-xl transition-colors mb-3 select-none"
-                                            >
-                                                <h4 className="text-sm font-bold text-brand-5">
-                                                    <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'} w-4 text-brand-3 transition-transform mr-1.5`}></i>
-                                                    {groupName} <span className="text-brand-4 ml-1 text-xs">(共 ${groupRecords.reduce((s,r)=>s+r.price,0).toLocaleString()})</span>
-                                                </h4>
-                                                <span className="text-xs font-bold text-brand-3">{groupRecords.length} 筆</span>
-                                            </div>
-                                        )}
+                                        <div key={groupName} className="mb-2">
+                                            {timeScale !== 'monthly' && (
+                                                <div onClick={() => toggleGroup(groupName)} className="flex items-center justify-between cursor-pointer bg-brand-1/30 hover:bg-brand-1/50 px-4 py-2.5 rounded-xl transition-colors mb-3 select-none">
+                                                    <h4 className="text-sm font-bold text-brand-5">
+                                                        <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'} w-4 text-brand-3 transition-transform mr-1.5`}></i>
+                                                        {groupName} <span className="text-brand-4 ml-1 text-xs">(共 ${groupRecords.reduce((s, r) => s + r.price, 0).toLocaleString()})</span>
+                                                    </h4>
+                                                    <span className="text-xs font-bold text-brand-3">{groupRecords.length} 筆</span>
+                                                </div>
+                                            )}
 
-                                        {!isCollapsed && (
-                                            <div className="space-y-2 animate-fade-in">
-                                                {groupRecords.map(record => {
-                                                    const cat = CATEGORIES.find(c => c.id === record.categoryId);
-                                                    const dateStr = new Date(record.date).toLocaleDateString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
-                                                    return (
-                                                        <div key={record.id} className="p-3 rounded-xl flex items-center justify-between group hover:bg-brand-1/30 transition-colors border border-transparent hover:border-brand-2/20">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="text-lg text-brand-3 w-10 h-10 shrink-0 rounded-lg bg-brand-1/40 flex items-center justify-center"><i className={cat?.icon}></i></div>
-                                                                <div>
-                                                                    <RecordDisplayName record={record} />
-                                                                    <div className="text-xs text-brand-2 mt-1.5 flex flex-wrap gap-2 items-center">
-                                                                        <span>{dateStr}</span>
-                                                                        {record.payer && !record.isPaid && <span className="text-[#A56B5D] flex items-center gap-1"><i className="fa-solid fa-circle text-[6px]"></i>代墊: {record.payer}</span>}
-                                                                        {record.payer && record.isPaid && <span className="text-brand-3 flex items-center gap-1"><i className="fa-solid fa-check text-[8px]"></i>已還: {record.payer}</span>}
-                                                                        {record.memo && <span className="text-brand-4 flex items-center gap-1"><i className="fa-solid fa-quote-left text-[8px]"></i>{record.memo}</span>}
-                                                                        {record.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-[10px]"></i>}
-                                                                        {record.rating === -1 && <i className="fa-solid fa-thumbs-down text-[#A56B5D] text-[10px]"></i>}
+                                            {!isCollapsed && (
+                                                <div className="space-y-2 animate-fade-in">
+                                                    {groupRecords.map(record => {
+                                                        const cat = categories.find(c => c.id === record.categoryId) || categories[0];
+                                                        const dateStr = new Date(record.date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                                        return (
+                                                            <div key={record.id} className="p-3 rounded-xl flex items-center justify-between group hover:bg-brand-1/30 transition-colors border border-transparent hover:border-brand-2/20">
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="text-lg text-brand-3 w-10 h-10 shrink-0 rounded-lg bg-brand-1/40 flex items-center justify-center"><i className={cat?.icon}></i></div>
+                                                                    <div>
+                                                                        <RecordDisplayName record={record} />
+                                                                        <div className="text-xs text-brand-2 mt-1.5 flex flex-wrap gap-2 items-center">
+                                                                            <span>{dateStr}</span>
+                                                                            {record.payer && !record.isPaid && <span className="text-[#A56B5D] flex items-center gap-1"><i className="fa-solid fa-circle text-[6px]"></i>代墊: {record.payer}</span>}
+                                                                            {record.payer && record.isPaid && <span className="text-brand-3 flex items-center gap-1"><i className="fa-solid fa-check text-[8px]"></i>已還: {record.payer}</span>}
+                                                                            {record.memo && <span className="text-brand-4 flex items-center gap-1"><i className="fa-solid fa-quote-left text-[8px]"></i>{record.memo}</span>}
+                                                                            {record.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-[10px]"></i>}
+                                                                            {record.rating === -1 && <i className="fa-solid fa-thumbs-down text-[#A56B5D] text-[10px]"></i>}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
+                                                                <div className="flex items-center gap-1 ml-2">
+                                                                    <span className="font-bold text-brand-5 mr-2">${record.price.toLocaleString()}</span>
+                                                                    <button onClick={() => setEditingRecord(record)} className="text-brand-3 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:bg-brand-1/60 rounded-lg"><i className="fa-solid fa-pen"></i></button>
+                                                                    <button onClick={() => deleteRecord(record.id)} className="text-brand-2 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:text-[#A56B5D] hover:bg-[#FDF3F3] rounded-lg"><i className="fa-solid fa-trash-can"></i></button>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-1 ml-2">
-                                                                <span className="font-bold text-brand-5 mr-2">${record.price.toLocaleString()}</span>
-                                                                <button onClick={() => setEditingRecord(record)} className="text-brand-3 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:bg-brand-1/60 rounded-lg"><i className="fa-solid fa-pen"></i></button>
-                                                                <button onClick={() => deleteRecord(record.id)} className="text-brand-2 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:text-[#A56B5D] hover:bg-[#FDF3F3] rounded-lg"><i className="fa-solid fa-trash-can"></i></button>
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                )})}
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
                     </div>
 
-                    {/* 呼叫編輯 Modal */}
-                    {editingRecord && (
-                        <EditModal
-                            record={editingRecord}
-                            onClose={() => setEditingRecord(null)}
-                            onSave={(updatedRecord) => {
-                                updateRecord(updatedRecord);
-                                setEditingRecord(null);
-                            }}
-                        />
-                    )}
+                    {editingRecord && (<EditModal record={editingRecord} categories={categories} onClose={() => setEditingRecord(null)} onSave={(updatedRecord) => { updateRecord(updatedRecord); setEditingRecord(null); }} />)}
                 </div>
             );
         }
@@ -1459,8 +1464,8 @@
                 reader.onload = (event) => {
                     try {
                         const importedData = JSON.parse(event.target.result);
-                        if(Array.isArray(importedData)) {
-                            if(window.confirm('確定要匯入資料嗎？這會覆蓋目前的紀錄。')) { setRecords(importedData); alert('匯入成功！'); }
+                        if (Array.isArray(importedData)) {
+                            if (window.confirm('確定要匯入資料嗎？這會覆蓋目前的紀錄。')) { setRecords(importedData); alert('匯入成功！'); }
                         } else alert('檔案格式錯誤');
                     } catch (err) { alert('檔案解析失敗'); }
                 };
@@ -1513,7 +1518,7 @@
                         </div>
 
                         <div className="text-center mt-4 border-t border-brand-1/50 pt-8">
-                            <button onClick={()=>{ if(window.confirm('🚨 確定要清除所有紀錄嗎？(無法復原)')) setRecords([]); }} className="text-xs text-[#A56B5D] font-medium hover:underline py-2 px-4 transition-colors"><i className="fa-solid fa-triangle-exclamation mr-1.5"></i> 刪除所有系統紀錄</button>
+                            <button onClick={() => { if (window.confirm('🚨 確定要清除所有紀錄嗎？(無法復原)')) setRecords([]); }} className="text-xs text-[#A56B5D] font-medium hover:underline py-2 px-4 transition-colors"><i className="fa-solid fa-triangle-exclamation mr-1.5"></i> 刪除所有系統紀錄</button>
                         </div>
                     </div>
                 </div>
@@ -1524,4 +1529,5 @@
         root.render(<App />);
     </script>
 </body>
+
 </html>
