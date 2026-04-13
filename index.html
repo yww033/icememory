@@ -108,19 +108,22 @@
             animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-            0% {
-                opacity: 0.5;
-            }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-            50% {
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0.5;
-            }
-        }
+        /* 🌙 深色模式 (Dark Mode) 高級覆寫規則 */
+        html.dark { background-color: #151B21; }
+        .dark body { background-color: #151B21; color: #D6D4C9; }
+        .dark .card-panel, .dark .bg-white { background-color: #1E262F !important; border-color: #415365 !important; }
+        .dark .text-brand-5 { color: #EFEFEA !important; }
+        .dark .text-brand-4 { color: #D6D4C9 !important; }
+        .dark .text-brand-2 { color: #9D9F97 !important; }
+        .dark .bg-\[\#FAF7F2\] { background-color: #2C363F !important; border-color: #415365 !important; }
+        .dark .bg-brand-1\/20, .dark .bg-brand-1\/30, .dark .bg-brand-1\/10, .dark .bg-brand-1\/40 { background-color: rgba(255,255,255,0.05) !important; }
+        .dark input, .dark select { background-color: #151B21 !important; color: #EFEFEA !important; border-color: #415365 !important; }
+        .dark nav.bg-white { background-color: #1E262F !important; border-top-color: #415365 !important; }
+        .dark header.bg-white { background-color: #1E262F !important; border-bottom-color: #415365 !important; }
+        .dark .text-\[\#A56B5D\] { color: #E8A598 !important; }
+        .dark .bg-\[\#FDF3F3\] { background-color: rgba(232,165,152,0.1) !important; border-color: rgba(232,165,152,0.3) !important; }
     </style>
 </head>
 
@@ -410,7 +413,14 @@
 
             const [activeTab, setActiveTab] = useState('add');
             const [holidays, setHolidays] = useState({});
-
+// --- 新增：深淺色主題切換引擎 ---
+            useEffect(() => {
+                if (settings.theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }, [settings.theme]);
             // --- 雲端/登入狀態 ---
             const [fbDB, setFbDB] = useState(null);
             const [fbAuth, setFbAuth] = useState(null);
@@ -1603,22 +1613,15 @@ function SettingsView({ settings, updateSettings, categories, records, setRecord
                     </div>
                 </div>
 
-                {/* --- 新增：自訂分類管理 UI --- */}
-                        <div className="card-panel p-6 flex flex-col gap-4">
+                {/* --- 新增：深淺色主題設定 --- */}
+                        <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                             <div>
-                                <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-tags mr-2 text-brand-3"></i>自訂分類標籤</h3>
-                                <p className="text-xs text-brand-4 mb-4">你可以自由更改前 10 大分類的名稱，打造專屬記帳本。</p>
+                                <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-moon mr-2 text-brand-3"></i>介面主題設定</h3>
+                                <p className="text-xs text-brand-4">切換深淺色模式，保護眼睛。</p>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                {editingCategories.map(cat => (
-                                    <div key={cat.id} className="flex flex-col gap-1.5 p-2 bg-brand-1/20 rounded-lg border border-brand-2/20">
-                                        <div className="text-center text-brand-3 text-lg"><i className={cat.icon}></i></div>
-                                        <input type="text" value={cat.name} onChange={(e) => handleCategoryNameChange(cat.id, e.target.value)} className="w-full bg-white border border-brand-2/40 rounded text-center px-1 py-1 text-xs text-brand-5 focus:border-brand-3 focus:outline-none transition-colors" />
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex justify-end mt-2">
-                                <button onClick={saveCategories} className="px-5 py-2 rounded-xl text-xs font-bold bg-brand-5 text-white hover:bg-brand-4 transition-colors shadow-sm">儲存分類設定</button>
+                            <div className="flex bg-brand-1/30 p-1 rounded-lg w-full md:w-auto">
+                                <button onClick={() => handleSettingChange('theme', 'light')} className={`flex-1 md:w-20 py-2 text-xs font-bold rounded-md transition-colors ${(!settings.theme || settings.theme === 'light') ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}><i className="fa-solid fa-sun mr-1"></i> 淺色</button>
+                                <button onClick={() => handleSettingChange('theme', 'dark')} className={`flex-1 md:w-20 py-2 text-xs font-bold rounded-md transition-colors ${settings.theme === 'dark' ? 'bg-brand-5 text-white shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}><i className="fa-solid fa-moon mr-1"></i> 深色</button>
                             </div>
                         </div>
 
