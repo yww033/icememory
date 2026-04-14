@@ -1425,6 +1425,25 @@
                 return validDaysCount > 0 ? Math.round(validTotal / validDaysCount) : 0;
             }, [filteredRecords, timeScale, viewMonth, viewYear, customEnd, holidays, settings.avgCalcMethod]);
 
+            // 1. 綜合熱門常客榜 (依「次數」排名，次數相同則依「金額」)
+            const generalReport = useMemo(() => {
+                const shopStats = {};
+                filteredRecords.forEach(r => {
+                    const parts = r.name.trim().split(' ');
+                    const shop = parts.length > 1 ? parts[0] : (r.name || '未命名');
+                    const item = parts.length > 1 ? parts.slice(1).join(' ') : '單品';
+                    if (!shopStats[shop]) shopStats[shop] = { total: 0, count: 0, items: {} };
+                    shopStats[shop].total += r.price; shopStats[shop].count += 1;
+                    const itemKey = `${item}${r.sugar && r.ice ? ` (${r.sugar}/${r.ice})` : ''}`;
+                    shopStats[shop].items[itemKey] = (shopStats[shop].items[itemKey] || 0) + 1;
+                });
+                return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
+                    const topItem = Object.entries(stats.items).sort((a, b) => b[1] - a[1])[0];
+                    return { shopName, total: stats.total, count: stats.count, topItem: topItem ? topItem[0] : '無' };
+                });
+            }, [filteredRecords]);
+
+            // 2. 手搖飲金賞 (改為依「杯數」排名，杯數相同則依「金額」)
             const drinkReport = useMemo(() => {
                 const drinks = filteredRecords.filter(r => DRINK_CATEGORIES.includes(r.categoryId));
                 const shopStats = {};
@@ -1437,7 +1456,7 @@
                     const itemKey = `${item}${r.sugar && r.ice ? ` (${r.sugar}/${r.ice})` : ''}`;
                     shopStats[shop].items[itemKey] = (shopStats[shop].items[itemKey] || 0) + 1;
                 });
-                return Object.entries(shopStats).sort((a, b) => b[1].total - a[1].total).slice(0, 3).map(([shopName, stats]) => {
+                return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
                     const topItem = Object.entries(stats.items).sort((a, b) => b[1] - a[1])[0];
                     return { shopName, total: stats.total, count: stats.count, topItem: topItem ? topItem[0] : '無' };
                 });
@@ -1485,7 +1504,46 @@
                             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-transparent text-sm font-bold text-brand-5 outline-none w-full" />
                         </div>
                     )}
+{/* 🏆 雙欄並排：綜合熱門常客榜 & 手搖飲金賞 */}
+                    {(generalReport.length > 0 || drinkReport.length > 0) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-6">
+                            {/* 常客榜卡片 */}
+                            {generalReport.length > 0 && (
+                                <div className="card-panel p-6 w-full bg-gradient-to-br from-white to-[#FDF3F3] border-[#E8D1D1]/50 shadow-sm">
+                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-crown text-yellow-500"></i> {reportTitle}熱門常客榜</h3>
+                                    <div className="space-y-4">
+                                        {generalReport.map((shop, index) => (
+                                            <div key={shop.shopName} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
+                                                    <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}次)</span></span>
+                                                </div>
+                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50">最常點：{shop.topItem}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
+                            {/* 手搖飲金賞卡片 */}
+                            {drinkReport.length > 0 && (
+                                <div className="card-panel p-6 w-full bg-gradient-to-br from-white to-brand-1/20 border-brand-3/20 shadow-sm">
+                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-trophy text-[#A56B5D]"></i> {reportTitle}手搖飲金賞</h3>
+                                    <div className="space-y-4">
+                                        {drinkReport.map((shop, index) => (
+                                            <div key={shop.shopName} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
+                                                    <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}杯)</span></span>
+                                                </div>
+                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50">必點：{shop.topItem}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="flex flex-col lg:flex-row gap-6 items-start">
                         {/* 左欄：圖表與排行榜 */}
                         <div className="w-full lg:w-[35%] flex flex-col gap-6 lg:sticky lg:top-0">
@@ -1524,22 +1582,7 @@
                                 ) : (<div className="py-12 text-brand-2 text-sm flex flex-col items-center gap-3"><i className="fa-solid fa-chart-pie text-3xl opacity-50"></i> 尚無資料</div>)}
                             </div>
 
-                            {drinkReport.length > 0 && (
-                                <div className="card-panel p-6 w-full bg-gradient-to-br from-white to-brand-1/20 border-brand-3/20">
-                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-trophy text-[#A56B5D]"></i> {reportTitle}手搖飲金賞</h3>
-                                    <div className="space-y-4">
-                                        {drinkReport.map((shop, index) => (
-                                            <div key={shop.shopName} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
-                                                    <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}杯)</span></span>
-                                                </div>
-                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50">必點：{shop.topItem}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
                         </div>
 
                         {/* 右欄：明細列表 (群組化) */}
