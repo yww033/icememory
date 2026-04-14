@@ -1107,20 +1107,21 @@
         }
 
         // --- 2. 總覽儀表板 (Dashboard View) ---
-        // --- 2. 總覽儀表板 (Dashboard View) - 去線條整合版 ---
         function DashboardView({ todayTotal, viewMonthTotal, thisWeekTotal, settings, goalCurrentVal, categories, debtsByPerson, payDebt, viewMonth, onPrevMonth, onNextMonth }) {
             let currentTotal = viewMonthTotal;
-            let budgetLabel = '本月預算';
+            let budgetLabel = '預算使用率 (該月)';
+
             if (settings.budgetType === 'daily') {
-                currentTotal = todayTotal; budgetLabel = '今日預算';
+                currentTotal = todayTotal; budgetLabel = '預算使用率 (今日)';
             } else if (settings.budgetType === 'weekly') {
-                currentTotal = thisWeekTotal; budgetLabel = '本週預算';
+                currentTotal = thisWeekTotal; budgetLabel = '預算使用率 (本週)';
             }
 
             const isOverBudget = currentTotal > settings.budget;
             const targetCatName = categories.find(c => c.id === settings.goalCategory)?.name || '目標';
+
             const goalIcons = Array.from({ length: Math.max(settings.goalLimit, goalCurrentVal) }, (_, i) =>
-                <i key={i} className={`fa-solid fa-bullseye text-xl mx-0.5 ${i < goalCurrentVal ? 'text-brand-2/20' : 'text-brand-3'}`}></i>
+                <i key={i} className={`fa-solid fa-bullseye text-2xl mx-1 ${i < goalCurrentVal ? 'text-brand-2/30' : 'text-brand-3'}`} title={i < goalCurrentVal ? "已達標" : "剩餘扣打"}></i>
             );
 
             const [copiedPerson, setCopiedPerson] = useState(null);
@@ -1133,95 +1134,69 @@
 
             return (
                 <div className="flex flex-col gap-6 animate-fade-in pb-4">
-                    {/* 頂部導覽與標題 */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <h2 className="text-2xl font-bold text-brand-5 tracking-tight flex items-center gap-2">
-                            <i className="fa-solid fa-chart-pie text-brand-3"></i> 數據統計
-                        </h2>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                        <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight">總覽儀表板</h2>
                         <MonthNavigator viewMonth={viewMonth} onPrev={onPrevMonth} onNext={onNextMonth} />
                     </div>
 
-                    {/* 🌟 改造核心：整合式主數據卡片 (移除分開的便當盒) */}
-                    <div className="bg-white rounded-[2rem] shadow-premium overflow-hidden border border-brand-1/50">
-                        {/* 數據第一排：今日花費主視覺 */}
-                        <div className="p-8 pb-4 text-center">
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-brand-2 font-bold mb-2 block">Today's Expense</span>
-                            <div className="flex items-baseline justify-center">
-                                <span className="text-2xl font-medium text-brand-3 mr-1">$</span>
-                                <span className="text-6xl font-black text-brand-5">{todayTotal.toLocaleString()}</span>
-                            </div>
-                        </div>
-
-                        {/* 數據第二排：極細分隔線與輔助數據 */}
-                        <div className="grid grid-cols-2 border-t border-brand-1/30">
-                            <div className="p-6 text-center border-r border-brand-1/30">
-                                <span className="text-[10px] text-brand-2 font-bold uppercase mb-1 block">本月累計</span>
-                                <span className="text-xl font-bold text-brand-4">${viewMonthTotal.toLocaleString()}</span>
-                            </div>
-                            <div className="p-6 text-center">
-                                <span className="text-[10px] text-brand-2 font-bold uppercase mb-1 block">{budgetLabel}</span>
-                                <span className={`text-xl font-bold ${isOverBudget ? 'text-[#A56B5D]' : 'text-brand-4'}`}>
-                                    ${currentTotal.toLocaleString()} <span className="text-xs text-brand-2 font-normal">/ {settings.budget}</span>
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* 數據第三排：進度條 */}
-                        <div className="px-8 pb-8">
-                            <div className="w-full bg-brand-1/30 rounded-full h-1.5 overflow-hidden">
-                                <div className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-[#A56B5D]' : 'bg-brand-3'}`}
-                                     style={{ width: `${Math.min(100, (currentTotal / settings.budget) * 100)}%` }}></div>
-                            </div>
-                            {isOverBudget && <p className="text-[10px] text-[#A56B5D] font-bold mt-2 text-center uppercase tracking-wider">Budget Exceeded 🚨</p>}
-                        </div>
-                    </div>
-
-                    {/* 次要資訊區：追蹤目標與待還款 (同樣採用較輕量的設計) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* 追蹤目標卡片 */}
-                        {settings.goalEnabled && (
-                            <div className="bg-white rounded-3xl p-8 flex flex-col items-center justify-center border border-brand-1/50 shadow-premium">
-                                <h3 className="text-xs font-bold text-brand-4 uppercase tracking-widest mb-6">{settings.goalPeriod === 'weekly' ? '本週' : '本月'} {targetCatName} 剩餘額度</h3>
-                                <div className="flex justify-center flex-wrap mb-6">{goalIcons}</div>
-                                <p className="text-[11px] font-bold text-brand-2 bg-brand-1/30 px-4 py-2 rounded-full uppercase tracking-wider">
-                                    {goalCurrentVal >= settings.goalLimit ? 'Limit Reached' : `Remaining: ${settings.goalLimit - goalCurrentVal}`}
-                                </p>
-                            </div>
-                        )}
-
-                        {/* 待還款提醒 (如果有債務才顯示) */}
-                        {Object.keys(debtsByPerson).length > 0 ? (
-                            <div className="bg-[#FAF7F2] rounded-3xl p-6 border border-[#D5C6BA] shadow-sm flex flex-col gap-4">
-                                <h3 className="text-[#A56B5D] font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-                                    <i className="fa-solid fa-bell"></i> 待還款提醒
-                                </h3>
-                                <div className="space-y-3 overflow-y-auto max-h-48 custom-scrollbar pr-1">
-                                    {Object.entries(debtsByPerson).map(([person, data]) => (
-                                        <div key={person} className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 flex justify-between items-center border border-white/80">
-                                            <div>
-                                                <p className="text-xs font-bold text-brand-5">欠 {person} <span className="text-[#A56B5D] ml-1">${data.total}</span></p>
-                                                <p className="text-[10px] text-brand-2 truncate max-w-[120px]">{data.items.join(', ')}</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleCopyMessage(person, data)} className="w-8 h-8 rounded-full bg-white text-brand-4 flex items-center justify-center text-xs shadow-sm hover:bg-brand-1 transition-colors">
-                                                    {copiedPerson === person ? <i className="fa-solid fa-check text-green-500"></i> : <i className="fa-regular fa-copy"></i>}
-                                                </button>
-                                                <button onClick={() => payDebt(person)} className="w-8 h-8 rounded-full bg-brand-5 text-white flex items-center justify-center text-xs shadow-sm hover:bg-brand-4 transition-colors">
-                                                    <i className="fa-solid fa-check"></i>
-                                                </button>
-                                            </div>
+                    {/* 置頂待還款區 */}
+                    {Object.keys(debtsByPerson).length > 0 && (
+                        <div className="bg-[#FAF7F2] border border-[#D5C6BA] p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                            <h3 className="text-[#A56B5D] font-bold text-sm mb-4 flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-lg"></i> 待還款提醒</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {Object.entries(debtsByPerson).map(([person, data]) => (
+                                    <div key={person} className="bg-white rounded-xl p-4 flex flex-col gap-4 shadow-sm border border-[#E8E1DA]">
+                                        <div>
+                                            <p className="font-semibold text-brand-5 text-sm">欠 {person} <span className="text-[#A56B5D] font-bold text-base ml-1">${data.total}</span></p>
+                                            <p className="text-xs text-brand-2 truncate max-w-[200px] mt-1">{data.items.join(', ')}</p>
                                         </div>
-                                    ))}
-                                </div>
+                                        <div className="flex items-center gap-2 w-full pt-2 border-t border-brand-1/40">
+                                            <button onClick={() => handleCopyMessage(person, data)} className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors active:scale-95 flex justify-center items-center gap-1.5 border ${copiedPerson === person ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-brand-4 border-brand-2/30 hover:bg-brand-1/20'}`}>
+                                                {copiedPerson === person ? <><i className="fa-solid fa-check"></i> 已複製</> : <><i className="fa-regular fa-copy"></i> 複製訊息</>}
+                                            </button>
+                                            <button onClick={() => payDebt(person)} className="flex-1 bg-brand-5 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-4 transition-colors active:scale-95 flex justify-center items-center gap-1.5 shadow-sm">
+                                                <i className="fa-solid fa-check"></i> 標記還清
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ) : (
-                            /* 若無債務，放一個漂亮的小卡 */
-                            <div className="bg-brand-3/10 rounded-3xl p-8 flex flex-col items-center justify-center border border-brand-3/20">
-                                <i className="fa-solid fa-hand-holding-heart text-2xl text-brand-3 mb-2"></i>
-                                <p className="text-xs font-bold text-brand-3 uppercase tracking-widest">目前沒有債務</p>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                        <div className="card-panel p-6 flex flex-col justify-center items-start relative overflow-hidden">
+                            <i className="fa-solid fa-wallet absolute -right-6 -bottom-6 text-7xl text-brand-1 opacity-50"></i>
+                            <span className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-2">今日即時花費</span>
+                            <span className="text-4xl font-bold text-brand-5 flex items-baseline"><span className="text-xl font-normal mr-1 text-brand-2">$</span>{todayTotal}</span>
+                        </div>
+                        <div className="card-panel p-6 flex flex-col justify-center items-start relative overflow-hidden">
+                            <i className="fa-solid fa-chart-line absolute -right-6 -bottom-6 text-7xl text-brand-1 opacity-50"></i>
+                            <span className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-2">該月累積</span>
+                            <span className="text-4xl font-bold text-brand-5 flex items-baseline"><span className="text-xl font-normal mr-1 text-brand-2">$</span>{viewMonthTotal}</span>
+                        </div>
+                        <div className="card-panel p-6 flex flex-col justify-center">
+                            <div className="flex justify-between text-xs font-medium mb-3 uppercase tracking-wider">
+                                <span className="text-brand-4">{budgetLabel}</span>
+                                <span className={isOverBudget ? 'text-[#A56B5D]' : 'text-brand-4'}>${currentTotal} / ${settings.budget}</span>
                             </div>
-                        )}
+                            <div className="w-full bg-brand-1/50 rounded-full h-2.5 overflow-hidden mb-3">
+                                <div className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-[#A56B5D]' : 'bg-brand-3'}`} style={{ width: `${Math.min(100, (currentTotal / settings.budget) * 100)}%` }}></div>
+                            </div>
+                            {isOverBudget && <p className="text-[10px] text-[#A56B5D] font-bold text-right">已超支警示</p>}
+                        </div>
                     </div>
+
+                    {/* 自訂目標模組 (如果開啟才顯示) */}
+                    {settings.goalEnabled && (
+                        <div className="card-panel p-6 md:p-8 text-center flex flex-col items-center justify-center">
+                            <h3 className="text-xs font-medium text-brand-4 uppercase tracking-wider mb-6"><i className="fa-solid fa-crosshairs mr-2 opacity-70"></i>{settings.goalPeriod === 'weekly' ? '本週' : '本月'} {targetCatName} 扣打</h3>
+                            <div className="flex justify-center flex-wrap mb-4">{goalIcons}</div>
+                            <p className="text-xs text-brand-4 font-medium bg-brand-1/30 px-4 py-2 rounded-lg inline-block">
+                                {goalCurrentVal >= settings.goalLimit ? '額度已用盡，為了錢包與健康請克制' : `本階段剩餘 ${Math.max(0, settings.goalLimit - goalCurrentVal)} 次扣打`}
+                            </p>
+                        </div>
+                    )}
                 </div>
             );
         }
