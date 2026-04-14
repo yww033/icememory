@@ -34,7 +34,7 @@
                             2: '#9D9F97', // Wet Pavement
                             3: '#697F93', // Blue Prince
                             4: '#415365', // Into the Stratosphere
-                            5: '#1E262F'  // Black Pearl
+                            5: '#2c4057'  // Black Pearl
                         }
                     },
                     boxShadow: {
@@ -233,7 +233,7 @@
         const DRINK_CATEGORIES = ['tea', 'milktea', 'addon', 'coffee'];
         const SUGAR_OPTIONS = ['正常', '少糖(7)', '半糖(5)', '微糖(3)', '一分', '無糖'];
         const ICE_OPTIONS = ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '常溫', '溫', '熱'];
-        const CHART_COLORS = ['#697F93', '#415365', '#9D9F97', '#1E262F', '#D6D4C9', '#8C9B90', '#B5AFA1', '#5B6973', '#4A5862', '#2C363F'];
+        const CHART_COLORS = ['#697F93', '#415365', '#9D9F97', '#2c4057', '#D6D4C9', '#8C9B90', '#B5AFA1', '#5B6973', '#4A5862', '#2C363F'];
 
         const DEFAULT_SETTINGS = {
             budget: 5000,
@@ -278,7 +278,7 @@
                     },
                     options: {
                         responsive: true, maintainAspectRatio: false, cutout: '70%',
-                        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E262F', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 } }
+                        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#2c4057', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 } }
                     }
                 });
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
@@ -317,7 +317,7 @@
                     data: { labels, datasets: [{ data, backgroundColor: '#697F93', borderRadius: 4, barPercentage: 0.6 }] },
                     options: {
                         responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E262F', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 } },
+                        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#2c4057', titleColor: '#D6D4C9', bodyColor: '#ffffff', padding: 12, cornerRadius: 8 } },
                         scales: { y: { beginAtZero: true, grid: { color: 'rgba(157, 159, 151, 0.15)' }, border: { display: false }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 } } } }
                     }
                 });
