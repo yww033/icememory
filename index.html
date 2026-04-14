@@ -888,9 +888,6 @@
         // ==========================================
         // 1. 新增頁面 (Add View)
         // ==========================================
-        // ==========================================
-        // 1. 新增頁面 (Add View) - 設計師質感重構版
-        // ==========================================
         function AddView({ records, setRecords, categories, setActiveTab }) {
             const [name, setName] = useState('');
             const [price, setPrice] = useState('');
@@ -962,6 +959,7 @@
                 let recordTimestamp = Date.now();
                 if (recordDate !== todayStr) recordTimestamp = new Date(recordDate).getTime() + (12 * 60 * 60 * 1000);
 
+                // AddRecord is now an async function that handles either cloud or local
                 setRecords({
                     id: Date.now().toString(), date: recordTimestamp, name: finalName, price: Number(finalPrice), categoryId,
                     payer: payer.trim() || null, isPaid: payer.trim() ? false : true, memo: memo.trim(), rating,
@@ -973,123 +971,134 @@
             };
 
             return (
-                <div className="w-full max-w-3xl mx-auto animate-fade-in flex flex-col gap-8 pt-2 md:pt-4 pb-10">
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+                <div className="w-full max-w-4xl mx-auto animate-fade-in flex flex-col gap-6 md:gap-8 pt-2 md:pt-4 pb-10">
+                    <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-2xl md:text-3xl font-bold text-brand-5 hidden md:block tracking-tight">快速記帳</h2>
+                    </div>
 
-                        {/* 🌟 視覺改造 1：巨型無框金額 */}
-                        <div className="flex flex-col items-center justify-center py-8 md:py-12 bg-white rounded-[2.5rem] shadow-premium transition-all hover:shadow-premium-hover">
-                            <span className="text-xs font-bold text-brand-2 mb-1 uppercase tracking-widest">Amount</span>
-                            <div className="flex items-baseline justify-center w-full px-8 relative">
-                                <span className="text-4xl md:text-5xl text-brand-3 font-medium mr-2 opacity-80">$</span>
-                                <input ref={priceInputRef} type="number" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="0"
-                                    className="w-full max-w-[280px] bg-transparent text-[72px] md:text-[96px] leading-none font-black text-brand-5 text-center outline-none placeholder:text-brand-1/50 transition-all focus:scale-105"
-                                />
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-6 md:gap-8">
+                        {/* 日期選擇區 */}
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                            <label className="text-sm font-semibold text-brand-4 whitespace-nowrap"><i className="fa-solid fa-calendar-day mr-2 text-brand-3"></i>消費日期</label>
+                            <div className="flex flex-wrap gap-3 w-full md:w-auto items-center">
+                                <input type="date" value={recordDate} onChange={e => setRecordDate(e.target.value)} className="bg-white border border-brand-2/30 rounded-lg px-4 py-2.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none font-medium text-sm flex-1 md:flex-none cursor-pointer shadow-sm" />
+                                <div className="flex gap-2 border border-brand-2/30 rounded-lg p-1 bg-white shadow-sm">
+                                    <button type="button" onClick={() => setDateOffset(0)} className="text-xs text-brand-4 hover:bg-brand-1 px-3 py-1.5 rounded-md font-medium transition-colors">今天</button>
+                                    <div className="w-px bg-brand-2/30 my-1"></div>
+                                    <button type="button" onClick={() => setDateOffset(-1)} className="text-xs text-brand-4 hover:bg-brand-1 px-3 py-1.5 rounded-md font-medium transition-colors">昨天</button>
+                                </div>
                             </div>
                         </div>
 
-                        {/* 🌟 視覺改造 2：藥丸式分類晶片 (無邊框、陰影凸顯) */}
-                        <div className="flex flex-wrap md:justify-center gap-2.5 md:gap-3">
+                        {/* 動態分類按鈕 */}
+                        <div className="grid grid-cols-4 md:flex md:flex-wrap md:gap-3 gap-2">
                             {categories.map(cat => (
                                 <button type="button" key={cat.id} onClick={() => { setCategoryId(cat.id); if (window.innerWidth > 768 && nameInputRef.current) nameInputRef.current.focus(); }}
-                                    className={`flex items-center px-4 py-2.5 md:px-5 md:py-3 rounded-full transition-all duration-300 ${categoryId === cat.id ? 'bg-brand-5 text-white shadow-lg shadow-brand-5/30 scale-105' : 'bg-white text-brand-4 hover:bg-brand-1/40'}`}>
-                                    <i className={`${cat.icon} text-base md:text-lg mr-2 ${categoryId === cat.id ? 'text-brand-3' : 'text-brand-2'}`}></i>
-                                    <span className="text-sm md:text-base font-bold whitespace-nowrap">{cat.name}</span>
+                                    className={`flex md:flex-row flex-col items-center justify-center md:px-5 md:py-3 py-3 px-1 rounded-xl transition-all border ${categoryId === cat.id ? 'bg-brand-5 text-white border-brand-5 shadow-md' : 'bg-white text-brand-4 border-brand-2/20 hover:border-brand-3 hover:text-brand-3'}`}>
+                                    <i className={`${cat.icon} text-xl md:text-base md:mr-2`}></i>
+                                    <span className="text-[10px] md:text-sm font-medium mt-1.5 md:mt-0 whitespace-nowrap truncate w-full">{cat.name}</span>
                                 </button>
                             ))}
                         </div>
 
-                        {/* 🌟 視覺改造 3：沉浸式隱形輸入區塊 */}
-                        <div className="bg-white rounded-[2rem] shadow-premium p-6 md:p-8 flex flex-col gap-6">
-
-                            {/* 日期 (極簡藥丸設計) */}
-                            <div className="flex items-center justify-between bg-brand-1/15 p-2 rounded-2xl">
-                                <div className="flex items-center gap-2 pl-4">
-                                    <i className="fa-solid fa-calendar-day text-brand-3"></i>
-                                    <input type="date" value={recordDate} onChange={e => setRecordDate(e.target.value)} className="bg-transparent text-brand-5 font-bold outline-none text-sm cursor-pointer" />
+                        {/* 攤平的統一輸入卡片 */}
+                        <div className="card-panel p-5 md:p-8 flex flex-col gap-6 md:gap-8 relative z-20">
+                            {/* 第一排：品項與金額 */}
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start relative">
+                                <div className="flex-1 w-full relative">
+                                    <div className="flex justify-between items-end mb-2">
+                                        <label className="block text-xs font-semibold text-brand-4">品項名稱</label>
+                                        <span className="text-[10px] text-brand-3/80 font-medium hidden md:inline-block"><i className="fa-solid fa-bolt text-yellow-500 mr-1"></i>Ninja 極速支援：品項 空格 金額 (例: 麥當勞 150)</span>
+                                    </div>
+                                    <input ref={nameInputRef} type="text" required value={name} onChange={e => setName(e.target.value)} onFocus={() => setIsNameFocused(true)} onBlur={() => setTimeout(() => setIsNameFocused(false), 200)}
+                                        placeholder="例：50嵐 冰淇淋紅茶 65" className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-3.5 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 font-medium transition-all"
+                                    />
+                                    {/* 無腦點餐小抄 Dropdown */}
+                                    {isNameFocused && name.trim() !== '' && suggestions.length > 0 && (
+                                        <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-brand-5 border border-brand-5 rounded-xl shadow-dropdown z-50 overflow-hidden animate-fade-in flex flex-col max-h-64">
+                                            <div className="text-[10px] text-brand-2 uppercase tracking-widest px-4 py-2 border-b border-brand-4/50 bg-[#151B21]">💡 歷史點餐小抄</div>
+                                            <div className="overflow-y-auto custom-scrollbar">
+                                                {suggestions.map((s, idx) => (
+                                                    <div key={`${s.id}-${idx}`} onClick={() => applySuggestion(s)} className="p-4 hover:bg-brand-4 cursor-pointer flex justify-between items-center border-b border-brand-4/30 last:border-0 transition-colors">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-white font-medium">{s.name}</span>
+                                                            {s.sugar && s.ice && <span className="text-[10px] text-brand-3 bg-brand-3/20 px-1 rounded">[{s.sugar}/{s.ice}]</span>}
+                                                            {s.memo && <span className="text-brand-2 text-xs hidden md:inline">({s.memo})</span>}
+                                                            {s.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-xs ml-1"></i>}
+                                                            {s.rating === -1 && <i className="fa-solid fa-thumbs-down text-[#A56B5D] text-xs ml-1"></i>}
+                                                        </div>
+                                                        <span className="text-brand-1 font-bold">${s.price}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex gap-1 bg-white p-1 rounded-xl shadow-sm">
-                                    <button type="button" onClick={() => setDateOffset(0)} className="text-xs text-brand-5 hover:bg-brand-1/30 px-4 py-1.5 rounded-lg font-bold transition-colors">今天</button>
-                                    <button type="button" onClick={() => setDateOffset(-1)} className="text-xs text-brand-4 hover:bg-brand-1/30 px-4 py-1.5 rounded-lg font-bold transition-colors">昨天</button>
+                                <div className="md:w-56 shrink-0 w-full">
+                                    <label className="block text-xs font-semibold text-brand-4 mb-2">金額 (若前方已輸入可留白)</label>
+                                    <div className="relative flex items-center">
+                                        <span className="absolute left-4 text-brand-4 font-bold text-lg">NT$</span>
+                                        <input ref={priceInputRef} type="number" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="0"
+                                            className="w-full bg-white border border-brand-2/40 rounded-xl pl-14 pr-4 py-3.5 text-lg font-bold text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 transition-all" />
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* 品項名稱 (底色輸入、無邊框) */}
-                            <div className="relative">
-                                <input ref={nameInputRef} type="text" required={!price} value={name} onChange={e => setName(e.target.value)} onFocus={() => setIsNameFocused(true)} onBlur={() => setTimeout(() => setIsNameFocused(false), 200)}
-                                    placeholder="輸入花費品項..." className="w-full bg-brand-1/10 hover:bg-brand-1/20 focus:bg-brand-1/20 rounded-2xl px-6 py-5 text-xl font-bold text-brand-5 outline-none placeholder:text-brand-2/60 transition-all"
-                                />
-                                {/* 歷史小抄 Dropdown */}
-                                {isNameFocused && name.trim() !== '' && suggestions.length > 0 && (
-                                    <div className="absolute top-[calc(100%+12px)] left-0 w-full bg-white rounded-2xl shadow-dropdown z-50 overflow-hidden animate-fade-in border border-brand-1/30 py-2">
-                                        <div className="text-[10px] text-brand-2 font-bold px-5 py-2 uppercase tracking-widest">💡 歷史點餐小抄</div>
-                                        <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                                            {suggestions.map((s, idx) => (
-                                                <div key={`${s.id}-${idx}`} onClick={() => applySuggestion(s)} className="px-5 py-3 hover:bg-brand-1/20 cursor-pointer flex justify-between items-center transition-colors">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-brand-5 font-bold">{s.name}</span>
-                                                        {s.sugar && s.ice && <span className="text-[10px] text-brand-3 bg-brand-3/10 px-1.5 py-0.5 rounded font-medium">[{s.sugar}/{s.ice}]</span>}
-                                                        {s.memo && <span className="text-brand-2 text-xs hidden md:inline opacity-70">({s.memo})</span>}
-                                                    </div>
-                                                    <span className="text-brand-4 font-black">${s.price}</span>
-                                                </div>
+                            {/* 飲料專屬糖冰客製區 */}
+                            {isDrink && (
+                                <div className="bg-[#FAF7F2] p-5 rounded-2xl border border-[#D5C6BA] flex flex-col md:flex-row gap-6 animate-fade-in shadow-sm">
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-brand-4 mb-3"><i className="fa-solid fa-cubes-stacked mr-1.5 text-brand-3"></i>甜度</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {SUGAR_OPTIONS.map(s => (
+                                                <button type="button" key={s} onClick={() => setSugar(s)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border shadow-sm active:scale-95 ${sugar === s ? 'bg-brand-3 text-white border-brand-3' : 'bg-white text-brand-4 border-brand-2/30 hover:border-brand-3 hover:text-brand-3'}`}>{s}</button>
                                             ))}
                                         </div>
                                     </div>
-                                )}
-                            </div>
-
-                            {/* 🌟 視覺改造 4：糖冰選擇「果凍化」 (Segmented Controls) */}
-                            {isDrink && (
-                                <div className="flex flex-col md:flex-row gap-4 pt-2">
-                                    <div className="flex-1 bg-brand-1/15 p-1.5 rounded-2xl flex flex-wrap gap-1">
-                                        <div className="w-full text-xs font-bold text-brand-3 px-3 pt-2 pb-1 opacity-80"><i className="fa-solid fa-cubes-stacked mr-1.5"></i>甜度</div>
-                                        {SUGAR_OPTIONS.map(s => (
-                                            <button type="button" key={s} onClick={() => setSugar(s)} className={`flex-1 min-w-[60px] px-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${sugar === s ? 'bg-white text-brand-5 shadow-sm scale-[1.02]' : 'text-brand-4 hover:bg-brand-1/30'}`}>{s}</button>
-                                        ))}
-                                    </div>
-                                    <div className="flex-1 bg-brand-1/15 p-1.5 rounded-2xl flex flex-wrap gap-1">
-                                        <div className="w-full text-xs font-bold text-brand-3 px-3 pt-2 pb-1 opacity-80"><i className="fa-solid fa-icicles mr-1.5"></i>冰塊</div>
-                                        {ICE_OPTIONS.map(i => (
-                                            <button type="button" key={i} onClick={() => setIce(i)} className={`flex-1 min-w-[60px] px-2 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${ice === i ? 'bg-white text-brand-5 shadow-sm scale-[1.02]' : 'text-brand-4 hover:bg-brand-1/30'}`}>{i}</button>
-                                        ))}
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-semibold text-brand-4 mb-3"><i className="fa-solid fa-icicles mr-1.5 text-[#697F93]"></i>冰塊</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {ICE_OPTIONS.map(i => (
+                                                <button type="button" key={i} onClick={() => setIce(i)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border shadow-sm active:scale-95 ${ice === i ? 'bg-[#697F93] text-white border-[#697F93]' : 'bg-white text-brand-4 border-brand-2/30 hover:border-[#697F93] hover:text-[#697F93]'}`}>{i}</button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* 代墊與備註 (無框融底色設計) */}
-                            <div className="flex flex-col md:flex-row gap-4 pt-2">
+                            {/* 第三排：攤平的代墊與備註區塊 */}
+                            <div className="flex flex-col md:flex-row gap-6 pt-6 border-t border-brand-1/50">
                                 <div className="flex-1">
-                                    <div className="flex items-center gap-3 bg-brand-1/10 rounded-2xl px-5 py-4 focus-within:bg-brand-1/20 transition-colors">
-                                        <i className="fa-solid fa-user-group text-[#A56B5D] opacity-70"></i>
-                                        <input type="text" value={payer} onChange={e => setPayer(e.target.value)} placeholder="代墊人 (選填)" className="w-full bg-transparent text-brand-5 font-bold outline-none placeholder:text-brand-2/60 text-sm" />
+                                    <div className="flex justify-between items-end mb-3">
+                                        <label className="block text-xs font-semibold text-[#A56B5D]"><i className="fa-solid fa-user-group mr-1.5 opacity-70"></i>代墊人 (選填)</label>
                                     </div>
                                     {recentPayers.length > 0 && (
-                                        <div className="flex gap-2 mt-3 px-1 overflow-x-auto custom-scrollbar pb-1">
+                                        <div className="flex flex-wrap gap-2 mb-3">
                                             {recentPayers.map(p => (
-                                                <button key={p} type="button" onClick={() => setPayer(p)} className="text-xs bg-[#FAF7F2] text-[#A56B5D] px-3.5 py-1.5 rounded-full font-bold transition-transform active:scale-95 shrink-0 hover:bg-[#E8E1DA]">
-                                                    {p}
+                                                <button key={p} type="button" onClick={() => setPayer(p)} className="text-xs bg-[#FAF7F2] hover:bg-[#E8E1DA] text-[#A56B5D] px-3 py-1.5 rounded-lg font-semibold transition-colors border border-[#D5C6BA] flex items-center gap-1.5 active:scale-95 shadow-sm">
+                                                    <i className="fa-solid fa-plus opacity-50 text-[10px]"></i> {p}
                                                 </button>
                                             ))}
                                         </div>
                                     )}
+                                    <input type="text" value={payer} onChange={e => setPayer(e.target.value)} placeholder="手動輸入同事名字"
+                                        className="w-full bg-white border border-brand-2/40 rounded-xl px-4 py-3.5 text-brand-5 focus:border-[#A56B5D] focus:ring-1 focus:ring-[#A56B5D] outline-none placeholder:text-brand-2 text-sm transition-all" />
                                 </div>
-
-                                <div className="flex-1 flex gap-2">
-                                    <div className="flex-1 flex items-center gap-3 bg-brand-1/10 rounded-2xl px-5 py-4 focus-within:bg-brand-1/20 transition-colors">
-                                        <i className="fa-solid fa-pen text-brand-3 opacity-70"></i>
-                                        <input type="text" value={memo} onChange={e => setMemo(e.target.value)} placeholder={isDrink ? "配料加點" : "備註 (選填)"} className="w-full bg-transparent text-brand-5 font-bold outline-none placeholder:text-brand-2/60 text-sm" />
+                                <div className="flex-1 flex flex-col">
+                                    <label className="block text-xs font-semibold text-brand-4 mb-3"><i className="fa-solid fa-pen-to-square mr-1.5 opacity-70"></i>{isDrink ? '配料加點與評價' : '備註與評價 (選填)'}</label>
+                                    <div className="flex gap-2 h-[50px]">
+                                        <input type="text" value={memo} onChange={e => setMemo(e.target.value)} placeholder={isDrink ? "例：+白玉波霸" : "例：微糖少冰"}
+                                            className="flex-1 bg-white border border-brand-2/40 rounded-xl px-4 text-brand-5 focus:border-brand-3 focus:ring-1 focus:ring-brand-3 outline-none placeholder:text-brand-2 text-sm transition-all" />
+                                        <button type="button" onClick={() => setRating(rating === 1 ? 0 : 1)} className={`w-[50px] shrink-0 rounded-xl border transition-all text-base flex items-center justify-center shadow-sm ${rating === 1 ? 'bg-brand-5 text-white border-brand-5' : 'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-brand-3 hover:text-brand-3'}`}><i className="fa-solid fa-thumbs-up"></i></button>
+                                        <button type="button" onClick={() => setRating(rating === -1 ? 0 : -1)} className={`w-[50px] shrink-0 rounded-xl border transition-all text-base flex items-center justify-center shadow-sm ${rating === -1 ? 'bg-[#A56B5D] text-white border-[#A56B5D]' : 'bg-[#FAF7F2] text-brand-4 border-brand-2/20 hover:border-[#A56B5D] hover:text-[#A56B5D]'}`}><i className="fa-solid fa-thumbs-down"></i></button>
                                     </div>
-                                    <button type="button" onClick={() => setRating(rating === 1 ? 0 : 1)} className={`w-14 shrink-0 rounded-2xl transition-all flex items-center justify-center text-xl ${rating === 1 ? 'bg-brand-5 text-white shadow-md scale-105' : 'bg-brand-1/10 text-brand-4 hover:bg-brand-1/30'}`}><i className="fa-solid fa-thumbs-up"></i></button>
-                                    <button type="button" onClick={() => setRating(rating === -1 ? 0 : -1)} className={`w-14 shrink-0 rounded-2xl transition-all flex items-center justify-center text-xl ${rating === -1 ? 'bg-[#A56B5D] text-white shadow-md scale-105' : 'bg-brand-1/10 text-brand-4 hover:bg-brand-1/30'}`}><i className="fa-solid fa-thumbs-down"></i></button>
                                 </div>
                             </div>
-
                         </div>
-
-                        {/* 送出按鈕 (懸浮膠囊感) */}
-                        <div className="pt-4 pb-6 flex justify-center">
-                            <button type="submit" className="w-full md:w-auto md:min-w-[320px] bg-brand-5 text-white font-black text-lg py-5 px-10 rounded-full shadow-premium hover:shadow-dropdown hover:-translate-y-1 transition-all flex justify-center items-center gap-3 active:scale-95">
-                                <i className="fa-solid fa-check-circle text-2xl text-brand-3"></i> 記下這筆
+                        {/* 送出按鈕 */}
+                        <div className="pt-2 md:pt-4">
+                            <button type="submit" className="w-full md:w-auto md:min-w-[240px] md:ml-auto bg-brand-5 text-white font-semibold text-base py-4 px-8 rounded-xl shadow-premium hover:shadow-premium-hover hover:bg-brand-4 transition-all flex justify-center items-center gap-2 active:scale-[0.98]">
+                                <i className="fa-solid fa-check"></i> 儲存紀錄 (Enter)
                             </button>
                         </div>
                     </form>
