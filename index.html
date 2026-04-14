@@ -1805,6 +1805,28 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+
+
+        // 1. 禁用右鍵選單
+        document.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+        });
+
+        // 2. 禁用常用的開發者工具與檢視原始碼快捷鍵
+        document.addEventListener('keydown', function (e) {
+            // 阻擋 F12
+            if (e.key === 'F12') {
+                e.preventDefault();
+            }
+            // 阻擋 Ctrl+Shift+I (Windows 開發者工具) / Cmd+Option+I (Mac)
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+            }
+            // 阻擋 Ctrl+U (Windows 檢視原始碼) / Cmd+Option+U (Mac)
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
+                e.preventDefault();
+            }
+        });
     </script>
 </body>
 
