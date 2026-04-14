@@ -1257,7 +1257,7 @@
                                 </div>
                                 <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar flex-1 bg-brand-1/10">
                                     <div className="space-y-3">
-                                        {selectedDate.dayRecords.length === 0 ? (<p className="text-center text-brand-2 text-sm py-10 font-medium">這天沒有花半毛錢，太神啦！</p>) : (
+                                        {selectedDate.dayRecords.length === 0 ? (<p className="text-center text-brand-2 text-sm py-10 font-medium">這天沒有花半毛錢，太扯啦！</p>) : (
                                             selectedDate.dayRecords.sort((a, b) => b.date - a.date).map(record => {
                                                 const cat = categories.find(c => c.id === record.categoryId) || categories[0];
                                                 return (
