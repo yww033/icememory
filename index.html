@@ -1244,8 +1244,10 @@
                     </div>
 
                     {selectedDate && !editingRecord && (
-                        <div className="fixed inset-0 bg-brand-5/60 backdrop-blur-sm z-[90] flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setSelectedDate(null); }}>
-                            <div className="bg-white rounded-t-[2rem] md:rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] animate-fade-in">
+
+                        <div className="fixed inset-0 bg-brand-5/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setSelectedDate(null); }}>
+
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh] animate-fade-in">
                                 <div className="px-6 py-5 border-b border-brand-1/50 flex justify-between items-center bg-[#FAF7F2]">
                                     <div>
                                         <h3 className="font-bold text-brand-5 text-lg">{new Date(selectedDate.dateTimestamp).getMonth() + 1}月{selectedDate.day}日 明細</h3>
