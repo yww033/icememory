@@ -267,7 +267,6 @@
             useEffect(() => {
                 if (chartInstance.current) chartInstance.current.destroy();
                 const ctx = canvasRef.current.getContext('2d');
-                // 🛑 修復一：將圖表的資料與下方列表同步，強制加上「金額由大到小排序」
                 const sortedEntries = Object.entries(catStats).sort((a, b) => b[1] - a[1]);
                 const labels = sortedEntries.map(([id]) => categories.find(c => c.id === id)?.name || id);
                 const data = sortedEntries.map(([id, val]) => val);
@@ -1548,6 +1547,7 @@
         }
 
 
+
         // --- 4. 設定頁面 (Settings View) ---
         // --- 4. 設定頁面 (Settings View) ---
         function SettingsView({ settings, updateSettings, categories, records, setRecords, isCloudMode, user, fbAuth }) {
@@ -1583,6 +1583,7 @@
                 if (!fbAuth) return;
                 try { await window.FB.signOut(fbAuth); } catch (error) { console.error(error); }
             };
+
             // --- 新增：自訂分類管理狀態與邏輯 ---
             const [editingCategories, setEditingCategories] = useState(categories);
 
@@ -1596,6 +1597,7 @@
                 updateSettings(settings, editingCategories);
                 alert('分類設定已儲存！');
             };
+
             return (
                 <div className="flex flex-col gap-6 animate-fade-in pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
@@ -1679,7 +1681,26 @@
                             </div>
                         </div>
 
-                        {/* --- 新增：深淺色主題設定 --- */}
+                        {/* --- 新增：自訂分類管理 UI --- */}
+                        <div className="card-panel p-6 flex flex-col gap-4">
+                            <div>
+                                <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-tags mr-2 text-brand-3"></i>自訂分類標籤</h3>
+                                <p className="text-xs text-brand-4 mb-4">你可以自由更改前 10 大分類的名稱，打造專屬記帳本。</p>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                {editingCategories.map(cat => (
+                                    <div key={cat.id} className="flex flex-col gap-1.5 p-2 bg-brand-1/20 rounded-lg border border-brand-2/20">
+                                        <div className="text-center text-brand-3 text-lg"><i className={cat.icon}></i></div>
+                                        <input type="text" maxLength="6" value={cat.name} onChange={(e) => handleCategoryNameChange(cat.id, e.target.value)} className="w-full bg-white border border-brand-2/40 rounded text-center px-1 py-1 text-xs text-brand-5 focus:border-brand-3 focus:outline-none transition-colors" />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end mt-2">
+                                <button onClick={saveCategories} className="px-5 py-2 rounded-xl text-xs font-bold bg-brand-5 text-white hover:bg-brand-4 transition-colors shadow-sm">儲存分類設定</button>
+                            </div>
+                        </div>
+
+                        {/* --- 深淺色主題設定 --- */}
                         <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                             <div>
                                 <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-moon mr-2 text-brand-3"></i>介面主題設定</h3>
