@@ -651,7 +651,27 @@
                     }
                 }
             };
-
+// --- 雲端批次匯入引擎 (修復匯入無法同步的 Bug) ---
+            const importRecords = async (importedData) => {
+                if (isCloudMode && user && fbDB) {
+                    try {
+                        const batch = window.FB.writeBatch(fbDB);
+                        importedData.forEach(r => {
+                            const ref = window.FB.doc(fbDB, 'artifacts', activeAppId, 'users', user.uid, 'records', r.id);
+                            batch.set(ref, r);
+                        });
+                        await batch.commit();
+                        alert('✅ 雲端資料同步匯入成功！請重新整理網頁！');
+                    } catch (e) {
+                        console.error("匯入失敗", e);
+                        alert('❌ 雲端匯入失敗，請檢查網路狀態');
+                    }
+                } else {
+                    setRecords(importedData);
+                    window.localStorage.setItem('icememory_records', JSON.stringify(importedData));
+                    alert('✅ 單機資料匯入成功！');
+                }
+            };
             // 一鍵搬家函數
             const performMigration = async () => {
                 try {
@@ -856,7 +876,7 @@
                                 />}
                                 {activeTab === 'settings' && <SettingsView
                                     settings={settings} updateSettings={updateSettings} categories={categories}
-                                    records={records} setRecords={setRecords} isCloudMode={isCloudMode} user={user} fbAuth={fbAuth}
+                                    records={records} importRecords={importRecords} isCloudMode={isCloudMode} user={user} fbAuth={fbAuth}
                                 />}
                             </div>
                         </div>
@@ -1595,23 +1615,27 @@
 
 
 
+
         // --- 4. 設定頁面 (Settings View) ---
-        function SettingsView({ settings, updateSettings, categories, records, setRecords, isCloudMode, user, fbAuth }) {
+        function SettingsView({ settings, updateSettings, categories, records, importRecords, isCloudMode, user, fbAuth }) {
             const handleExport = () => {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
                 const a = document.createElement('a');
                 a.href = dataStr; a.download = "icememory_backup.json";
                 document.body.appendChild(a); a.click(); a.remove();
             };
-            const handleImport = (e) => {
+
+            const handleImport = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (event) => {
+                reader.onload = async (event) => {
                     try {
                         const importedData = JSON.parse(event.target.result);
                         if (Array.isArray(importedData)) {
-                            if (window.confirm('確定要匯入資料嗎？這會覆蓋目前的紀錄。')) { setRecords(importedData); alert('匯入成功！'); }
+                            if (window.confirm('確定要匯入資料嗎？這會將備份資料全面同步上傳到雲端！')) {
+                                await importRecords(importedData);
+                            }
                         } else alert('檔案格式錯誤');
                     } catch (err) { alert('檔案解析失敗'); }
                 };
@@ -1796,7 +1820,7 @@
                             </button>
                         </div>
                         <div className="text-center mt-4 border-t border-brand-1/50 pt-8">
-                            <button onClick={() => { if (window.confirm('🚨 確定要清除所有紀錄嗎？(無法復原)')) setRecords([]); }} className="text-xs text-[#A56B5D] font-medium hover:underline py-2 px-4 transition-colors"><i className="fa-solid fa-triangle-exclamation mr-1.5"></i> 刪除所有系統紀錄</button>
+                            <button onClick={() => { if (window.confirm('🚨 確定要清除所有紀錄嗎？(無法復原)')) importRecords([]); }} className="text-xs text-[#A56B5D] font-medium hover:underline py-2 px-4 transition-colors"><i className="fa-solid fa-triangle-exclamation mr-1.5"></i> 刪除所有系統紀錄</button>
                         </div>
                     </div>
                 </div>
