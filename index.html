@@ -233,7 +233,7 @@
         const DRINK_CATEGORIES = ['tea', 'milktea', 'addon', 'coffee'];
         const SUGAR_OPTIONS = ['正常', '少糖(7)', '半糖(5)', '微糖(3)', '一分', '無糖'];
         const ICE_OPTIONS = ['正常冰', '少冰', '微冰', '去冰', '完全去冰', '常溫', '溫', '熱'];
-        const CHART_COLORS = ['#697F93', '#415365', '#9D9F97', '#2c4057', '#D6D4C9', '#8C9B90', '#B5AFA1', '#5B6973', '#4A5862', '#2C363F'];
+        const CHART_COLORS = ['#7C98B3', '#D6B5A7', '#8EA495', '#CFB997', '#A8929E', '#9CB1C9', '#C2B8B1', '#A3B4A9', '#C9A3A3', '#9AADB9'];
 
         const DEFAULT_SETTINGS = {
             budget: 5000,
@@ -267,8 +267,10 @@
             useEffect(() => {
                 if (chartInstance.current) chartInstance.current.destroy();
                 const ctx = canvasRef.current.getContext('2d');
-                const labels = Object.keys(catStats).map(id => categories.find(c => c.id === id)?.name || id);
-                const data = Object.values(catStats);
+                // 🛑 修復一：將圖表的資料與下方列表同步，強制加上「金額由大到小排序」
+                const sortedEntries = Object.entries(catStats).sort((a, b) => b[1] - a[1]);
+                const labels = sortedEntries.map(([id]) => categories.find(c => c.id === id)?.name || id);
+                const data = sortedEntries.map(([id, val]) => val);
 
                 chartInstance.current = new Chart(ctx, {
                     type: 'doughnut',
