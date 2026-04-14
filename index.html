@@ -25,6 +25,7 @@
     <!-- Tailwind Config for Premium Colors -->
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -108,22 +109,85 @@
             animation: pulse 2s infinite;
         }
 
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
 
         /* 🌙 深色模式 (Dark Mode) 高級覆寫規則 */
-        html.dark { background-color: #151B21; }
-        .dark body { background-color: #151B21; color: #D6D4C9; }
-        .dark .card-panel, .dark .bg-white { background-color: #1E262F !important; border-color: #415365 !important; }
-        .dark .text-brand-5 { color: #EFEFEA !important; }
-        .dark .text-brand-4 { color: #D6D4C9 !important; }
-        .dark .text-brand-2 { color: #9D9F97 !important; }
-        .dark .bg-\[\#FAF7F2\] { background-color: #2C363F !important; border-color: #415365 !important; }
-        .dark .bg-brand-1\/20, .dark .bg-brand-1\/30, .dark .bg-brand-1\/10, .dark .bg-brand-1\/40 { background-color: rgba(255,255,255,0.05) !important; }
-        .dark input, .dark select { background-color: #151B21 !important; color: #EFEFEA !important; border-color: #415365 !important; }
-        .dark nav.bg-white { background-color: #1E262F !important; border-top-color: #415365 !important; }
-        .dark header.bg-white { background-color: #1E262F !important; border-bottom-color: #415365 !important; }
-        .dark .text-\[\#A56B5D\] { color: #E8A598 !important; }
-        .dark .bg-\[\#FDF3F3\] { background-color: rgba(232,165,152,0.1) !important; border-color: rgba(232,165,152,0.3) !important; }
+        html.dark {
+            background-color: #151B21;
+        }
+
+        .dark body {
+            background-color: #151B21;
+            color: #D6D4C9;
+        }
+
+        .dark .card-panel,
+        .dark .bg-white {
+            background-color: #1E262F !important;
+            border-color: #415365 !important;
+        }
+
+        .dark .text-brand-5 {
+            color: #EFEFEA !important;
+        }
+
+        .dark .text-brand-4 {
+            color: #D6D4C9 !important;
+        }
+
+        .dark .text-brand-2 {
+            color: #9D9F97 !important;
+        }
+
+        .dark .bg-\[\#FAF7F2\] {
+            background-color: #2C363F !important;
+            border-color: #415365 !important;
+        }
+
+        .dark .bg-brand-1\/20,
+        .dark .bg-brand-1\/30,
+        .dark .bg-brand-1\/10,
+        .dark .bg-brand-1\/40 {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .dark input,
+        .dark select {
+            background-color: #151B21 !important;
+            color: #EFEFEA !important;
+            border-color: #415365 !important;
+        }
+
+        .dark nav.bg-white {
+            background-color: #1E262F !important;
+            border-top-color: #415365 !important;
+        }
+
+        .dark header.bg-white {
+            background-color: #1E262F !important;
+            border-bottom-color: #415365 !important;
+        }
+
+        .dark .text-\[\#A56B5D\] {
+            color: #E8A598 !important;
+        }
+
+        .dark .bg-\[\#FDF3F3\] {
+            background-color: rgba(232, 165, 152, 0.1) !important;
+            border-color: rgba(232, 165, 152, 0.3) !important;
+        }
     </style>
 </head>
 
@@ -413,7 +477,7 @@
 
             const [activeTab, setActiveTab] = useState('add');
             const [holidays, setHolidays] = useState({});
-// --- 新增：深淺色主題切換引擎 ---
+            // --- 新增：深淺色主題切換引擎 ---
             useEffect(() => {
                 if (settings.theme === 'dark') {
                     document.documentElement.classList.add('dark');
@@ -1484,136 +1548,136 @@
 
         // --- 4. 設定頁面 (Settings View) ---
         // --- 4. 設定頁面 (Settings View) ---
-function SettingsView({ settings, updateSettings, categories, records, setRecords, isCloudMode, user, fbAuth }) {
-    const handleExport = () => {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
-        const a = document.createElement('a');
-        a.href = dataStr; a.download = "icememory_backup.json";
-        document.body.appendChild(a); a.click(); a.remove();
-    };
-    const handleImport = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const importedData = JSON.parse(event.target.result);
-                if(Array.isArray(importedData)) {
-                    if(window.confirm('確定要匯入資料嗎？這會覆蓋目前的紀錄。')) { setRecords(importedData); alert('匯入成功！'); }
-                } else alert('檔案格式錯誤');
-            } catch (err) { alert('檔案解析失敗'); }
-        };
-        reader.readAsText(file);
-    };
+        function SettingsView({ settings, updateSettings, categories, records, setRecords, isCloudMode, user, fbAuth }) {
+            const handleExport = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
+                const a = document.createElement('a');
+                a.href = dataStr; a.download = "icememory_backup.json";
+                document.body.appendChild(a); a.click(); a.remove();
+            };
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (Array.isArray(importedData)) {
+                            if (window.confirm('確定要匯入資料嗎？這會覆蓋目前的紀錄。')) { setRecords(importedData); alert('匯入成功！'); }
+                        } else alert('檔案格式錯誤');
+                    } catch (err) { alert('檔案解析失敗'); }
+                };
+                reader.readAsText(file);
+            };
 
-    const handleSettingChange = (key, value) => { updateSettings({ ...settings, [key]: value }); };
+            const handleSettingChange = (key, value) => { updateSettings({ ...settings, [key]: value }); };
 
-    const handleGoogleLogin = async () => {
-        if(!fbAuth) return alert('Firebase 尚未初始化');
-        try { await window.FB.signInWithPopup(fbAuth, new window.FB.GoogleAuthProvider()); }
-        catch (error) { console.error(error); alert('登入失敗'); }
-    };
-    const handleLogout = async () => {
-        if(!fbAuth) return;
-        try { await window.FB.signOut(fbAuth); } catch (error) { console.error(error); }
-    };
-// --- 新增：自訂分類管理狀態與邏輯 ---
-    const [editingCategories, setEditingCategories] = useState(categories);
+            const handleGoogleLogin = async () => {
+                if (!fbAuth) return alert('Firebase 尚未初始化');
+                try { await window.FB.signInWithPopup(fbAuth, new window.FB.GoogleAuthProvider()); }
+                catch (error) { console.error(error); alert('登入失敗'); }
+            };
+            const handleLogout = async () => {
+                if (!fbAuth) return;
+                try { await window.FB.signOut(fbAuth); } catch (error) { console.error(error); }
+            };
+            // --- 新增：自訂分類管理狀態與邏輯 ---
+            const [editingCategories, setEditingCategories] = useState(categories);
 
-    // 處理分類名稱變更
-    const handleCategoryNameChange = (id, newName) => {
-        setEditingCategories(prev => prev.map(c => c.id === id ? { ...c, name: newName } : c));
-    };
+            // 處理分類名稱變更
+            const handleCategoryNameChange = (id, newName) => {
+                setEditingCategories(prev => prev.map(c => c.id === id ? { ...c, name: newName } : c));
+            };
 
-    // 儲存分類變更 (同步更新到 settings 引擎)
-    const saveCategories = () => {
-        updateSettings(settings, editingCategories);
-        alert('分類設定已儲存！');
-    };
-    return (
-        <div className="flex flex-col gap-6 animate-fade-in pb-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-                <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight">系統設定</h2>
-            </div>
+            // 儲存分類變更 (同步更新到 settings 引擎)
+            const saveCategories = () => {
+                updateSettings(settings, editingCategories);
+                alert('分類設定已儲存！');
+            };
+            return (
+                <div className="flex flex-col gap-6 animate-fade-in pb-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                        <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight">系統設定</h2>
+                    </div>
 
-            <div className="flex flex-col gap-6 w-full">
-                <div className="card-panel p-6 border-l-4 border-brand-3 bg-gradient-to-r from-brand-1/20 to-white">
-                    <h3 className="text-sm font-semibold text-brand-5 mb-3 flex items-center gap-2"><i className="fa-solid fa-cloud text-brand-3"></i> 跨裝置雲端同步</h3>
-                    {!isCloudMode ? (
-                        <div>
-                            <p className="text-xs text-brand-4 mb-3 leading-relaxed">您目前處於<strong>單機模式</strong>。資料僅保存在此裝置中。<br/>若要開啟跨裝置同步，請在原始碼 <code>USER_FIREBASE_CONFIG</code> 中填寫 Firebase 金鑰。</p>
-                            <span className="inline-block px-3 py-1 bg-brand-2/20 text-brand-4 text-xs font-bold rounded">單機運行中</span>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                            {user && !user.isAnonymous ? (
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-brand-3 shadow-sm bg-brand-1 flex items-center justify-center">
-                                        {user.photoURL ? <img src={user.photoURL} alt="avatar" /> : <i className="fa-solid fa-user text-white"></i>}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-brand-5">{user.displayName || '使用者'}</p>
-                                        <p className="text-xs text-brand-2">{user.email}</p>
-                                    </div>
+                    <div className="flex flex-col gap-6 w-full">
+                        <div className="card-panel p-6 border-l-4 border-brand-3 bg-gradient-to-r from-brand-1/20 to-white">
+                            <h3 className="text-sm font-semibold text-brand-5 mb-3 flex items-center gap-2"><i className="fa-solid fa-cloud text-brand-3"></i> 跨裝置雲端同步</h3>
+                            {!isCloudMode ? (
+                                <div>
+                                    <p className="text-xs text-brand-4 mb-3 leading-relaxed">您目前處於<strong>單機模式</strong>。資料僅保存在此裝置中。<br />若要開啟跨裝置同步，請在原始碼 <code>USER_FIREBASE_CONFIG</code> 中填寫 Firebase 金鑰。</p>
+                                    <span className="inline-block px-3 py-1 bg-brand-2/20 text-brand-4 text-xs font-bold rounded">單機運行中</span>
                                 </div>
                             ) : (
-                                <p className="text-xs text-brand-4">登入 Google 帳號，立刻開啟手機與電腦無縫同步！</p>
+                                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                    {user && !user.isAnonymous ? (
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-brand-3 shadow-sm bg-brand-1 flex items-center justify-center">
+                                                {user.photoURL ? <img src={user.photoURL} alt="avatar" /> : <i className="fa-solid fa-user text-white"></i>}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-brand-5">{user.displayName || '使用者'}</p>
+                                                <p className="text-xs text-brand-2">{user.email}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-brand-4">登入 Google 帳號，立刻開啟手機與電腦無縫同步！</p>
+                                    )}
+
+                                    {user && !user.isAnonymous ? (
+                                        <button onClick={handleLogout} className="px-5 py-2 rounded-xl text-xs font-bold text-brand-4 border border-brand-2/40 hover:bg-brand-1/30 transition-all">登出</button>
+                                    ) : (
+                                        <button onClick={handleGoogleLogin} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#4285F4] hover:bg-[#3367D6] shadow-sm transition-all flex items-center gap-2">
+                                            <i className="fa-brands fa-google"></i> 透過 Google 登入
+                                        </button>
+                                    )}
+                                </div>
                             )}
-
-                            {user && !user.isAnonymous ? (
-                                <button onClick={handleLogout} className="px-5 py-2 rounded-xl text-xs font-bold text-brand-4 border border-brand-2/40 hover:bg-brand-1/30 transition-all">登出</button>
-                            ) : (
-                                <button onClick={handleGoogleLogin} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#4285F4] hover:bg-[#3367D6] shadow-sm transition-all flex items-center gap-2">
-                                    <i className="fa-brands fa-google"></i> 透過 Google 登入
-                                </button>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="card-panel p-6 flex flex-col justify-center">
-                        <label className="block text-sm font-semibold text-brand-4 mb-4">預算設定</label>
-
-                        <div className="flex bg-brand-1/30 p-1 rounded-lg mb-4">
-                            <button onClick={() => handleSettingChange('budgetType', 'daily')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${settings.budgetType === 'daily' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每日</button>
-                            <button onClick={() => handleSettingChange('budgetType', 'weekly')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${settings.budgetType === 'weekly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每週</button>
-                            <button onClick={() => handleSettingChange('budgetType', 'monthly')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${settings.budgetType === 'monthly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每月</button>
                         </div>
 
-                        <div className="relative flex items-center">
-                            <span className="absolute left-4 text-brand-2 text-sm">NT$</span>
-                            <input type="number" value={settings.budget} onChange={e => handleSettingChange('budget', Number(e.target.value))}
-                                className="w-full bg-white border border-brand-2/30 rounded-xl pl-12 pr-4 py-3 text-brand-5 font-bold focus:border-brand-3 focus:bg-white outline-none transition-colors" />
-                        </div>
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="card-panel p-6 flex flex-col justify-center">
+                                <label className="block text-sm font-semibold text-brand-4 mb-4">預算設定</label>
 
-                    <div className="card-panel p-6 flex flex-col relative">
-                        <div className="flex justify-between items-center mb-4">
-                            <label className="block text-sm font-semibold text-brand-4">自訂追蹤目標 (扣打)</label>
-                            <button type="button" onClick={() => handleSettingChange('goalEnabled', !settings.goalEnabled)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${settings.goalEnabled ? 'bg-brand-3' : 'bg-brand-2/50'}`}>
-                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${settings.goalEnabled ? 'translate-x-4' : 'translate-x-1'}`}/>
-                            </button>
-                        </div>
-                        <div className={`flex flex-col gap-4 transition-opacity ${settings.goalEnabled ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                            <div className="flex gap-2">
-                                <select value={settings.goalPeriod} onChange={e => handleSettingChange('goalPeriod', e.target.value)} className="flex-1 bg-white border border-brand-2/30 rounded-lg px-3 py-2 text-xs font-semibold text-brand-5 outline-none">
-                                    <option value="weekly">每週限制</option>
-                                    <option value="monthly">每月限制</option>
-                                </select>
-                                <select value={settings.goalCategory} onChange={e => handleSettingChange('goalCategory', e.target.value)} className="flex-[2] bg-white border border-brand-2/30 rounded-lg px-3 py-2 text-xs font-semibold text-brand-5 outline-none">
-                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
+                                <div className="flex bg-brand-1/30 p-1 rounded-lg mb-4">
+                                    <button onClick={() => handleSettingChange('budgetType', 'daily')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${settings.budgetType === 'daily' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每日</button>
+                                    <button onClick={() => handleSettingChange('budgetType', 'weekly')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${settings.budgetType === 'weekly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每週</button>
+                                    <button onClick={() => handleSettingChange('budgetType', 'monthly')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${settings.budgetType === 'monthly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>每月</button>
+                                </div>
+
+                                <div className="relative flex items-center">
+                                    <span className="absolute left-4 text-brand-2 text-sm">NT$</span>
+                                    <input type="number" value={settings.budget} onChange={e => handleSettingChange('budget', Number(e.target.value))}
+                                        className="w-full bg-white border border-brand-2/30 rounded-xl pl-12 pr-4 py-3 text-brand-5 font-bold focus:border-brand-3 focus:bg-white outline-none transition-colors" />
+                                </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <input type="range" min="0" max="20" value={settings.goalLimit} onChange={e => handleSettingChange('goalLimit', Number(e.target.value))} className="w-full accent-brand-5" />
-                                <span className="font-bold text-xl text-brand-5 w-8 text-center">{settings.goalLimit}</span><span className="text-xs text-brand-4">次</span>
+
+                            <div className="card-panel p-6 flex flex-col relative">
+                                <div className="flex justify-between items-center mb-4">
+                                    <label className="block text-sm font-semibold text-brand-4">自訂追蹤目標 (扣打)</label>
+                                    <button type="button" onClick={() => handleSettingChange('goalEnabled', !settings.goalEnabled)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${settings.goalEnabled ? 'bg-brand-3' : 'bg-brand-2/50'}`}>
+                                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${settings.goalEnabled ? 'translate-x-4' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                                <div className={`flex flex-col gap-4 transition-opacity ${settings.goalEnabled ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+                                    <div className="flex gap-2">
+                                        <select value={settings.goalPeriod} onChange={e => handleSettingChange('goalPeriod', e.target.value)} className="flex-1 bg-white border border-brand-2/30 rounded-lg px-3 py-2 text-xs font-semibold text-brand-5 outline-none">
+                                            <option value="weekly">每週限制</option>
+                                            <option value="monthly">每月限制</option>
+                                        </select>
+                                        <select value={settings.goalCategory} onChange={e => handleSettingChange('goalCategory', e.target.value)} className="flex-[2] bg-white border border-brand-2/30 rounded-lg px-3 py-2 text-xs font-semibold text-brand-5 outline-none">
+                                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <input type="range" min="0" max="20" value={settings.goalLimit} onChange={e => handleSettingChange('goalLimit', Number(e.target.value))} className="w-full accent-brand-5" />
+                                        <span className="font-bold text-xl text-brand-5 w-8 text-center">{settings.goalLimit}</span><span className="text-xs text-brand-4">次</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* --- 新增：深淺色主題設定 --- */}
+                        {/* --- 新增：深淺色主題設定 --- */}
                         <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                             <div>
                                 <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-moon mr-2 text-brand-3"></i>介面主題設定</h3>
@@ -1628,32 +1692,32 @@ function SettingsView({ settings, updateSettings, categories, records, setRecord
                         <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                             <div>
                                 <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-calculator mr-2 text-brand-3"></i>平均花費算法</h3>
-                        <p className="text-xs text-brand-4">報表中的每日平均花費如何計算？</p>
-                    </div>
-                    <div className="flex bg-brand-1/30 p-1 rounded-lg w-full md:w-auto">
-                        <button onClick={() => handleSettingChange('avgCalcMethod', 'workdays')} className={`flex-1 md:px-6 py-2 text-xs font-bold rounded-md transition-colors ${settings.avgCalcMethod === 'workdays' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>僅工作日 (扣除假日)</button>
-                        <button onClick={() => handleSettingChange('avgCalcMethod', 'all_days')} className={`flex-1 md:px-6 py-2 text-xs font-bold rounded-md transition-colors ${settings.avgCalcMethod === 'all_days' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>包含所有假日</button>
-                    </div>
-                </div>
+                                <p className="text-xs text-brand-4">報表中的每日平均花費如何計算？</p>
+                            </div>
+                            <div className="flex bg-brand-1/30 p-1 rounded-lg w-full md:w-auto">
+                                <button onClick={() => handleSettingChange('avgCalcMethod', 'workdays')} className={`flex-1 md:px-6 py-2 text-xs font-bold rounded-md transition-colors ${settings.avgCalcMethod === 'workdays' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>僅工作日 (扣除假日)</button>
+                                <button onClick={() => handleSettingChange('avgCalcMethod', 'all_days')} className={`flex-1 md:px-6 py-2 text-xs font-bold rounded-md transition-colors ${settings.avgCalcMethod === 'all_days' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>包含所有假日</button>
+                            </div>
+                        </div>
 
-                <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div>
-                        <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-hard-drive mr-2 text-brand-3"></i>資料備份與還原</h3>
-                        <p className="text-xs text-brand-4">手動匯出 JSON 格式檔案</p>
-                    </div>
-                    <div className="flex gap-3 w-full md:w-auto">
-                        <button onClick={handleExport} className="flex-1 md:flex-none border border-brand-2/40 text-brand-5 font-medium py-2 px-5 rounded-lg hover:bg-brand-1/30 transition-colors text-xs font-bold"><i className="fa-solid fa-download mr-1.5 opacity-70"></i> 匯出備份</button>
-                        <label className="flex-1 md:flex-none bg-brand-5 text-white font-medium py-2 px-5 rounded-lg hover:bg-brand-4 transition-colors text-center cursor-pointer text-xs font-bold shadow-sm"><i className="fa-solid fa-upload mr-1.5 opacity-70"></i> 匯入還原<input type="file" accept=".json" onChange={handleImport} className="hidden" /></label>
-                    </div>
-                </div>
+                        <div className="card-panel p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div>
+                                <h3 className="text-sm font-semibold text-brand-5 mb-1"><i className="fa-solid fa-hard-drive mr-2 text-brand-3"></i>資料備份與還原</h3>
+                                <p className="text-xs text-brand-4">手動匯出 JSON 格式檔案</p>
+                            </div>
+                            <div className="flex gap-3 w-full md:w-auto">
+                                <button onClick={handleExport} className="flex-1 md:flex-none border border-brand-2/40 text-brand-5 font-medium py-2 px-5 rounded-lg hover:bg-brand-1/30 transition-colors text-xs font-bold"><i className="fa-solid fa-download mr-1.5 opacity-70"></i> 匯出備份</button>
+                                <label className="flex-1 md:flex-none bg-brand-5 text-white font-medium py-2 px-5 rounded-lg hover:bg-brand-4 transition-colors text-center cursor-pointer text-xs font-bold shadow-sm"><i className="fa-solid fa-upload mr-1.5 opacity-70"></i> 匯入還原<input type="file" accept=".json" onChange={handleImport} className="hidden" /></label>
+                            </div>
+                        </div>
 
-                <div className="text-center mt-4 border-t border-brand-1/50 pt-8">
-                    <button onClick={()=>{ if(window.confirm('🚨 確定要清除所有紀錄嗎？(無法復原)')) setRecords([]); }} className="text-xs text-[#A56B5D] font-medium hover:underline py-2 px-4 transition-colors"><i className="fa-solid fa-triangle-exclamation mr-1.5"></i> 刪除所有系統紀錄</button>
+                        <div className="text-center mt-4 border-t border-brand-1/50 pt-8">
+                            <button onClick={() => { if (window.confirm('🚨 確定要清除所有紀錄嗎？(無法復原)')) setRecords([]); }} className="text-xs text-[#A56B5D] font-medium hover:underline py-2 px-4 transition-colors"><i className="fa-solid fa-triangle-exclamation mr-1.5"></i> 刪除所有系統紀錄</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    );
-}
+            );
+        }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
