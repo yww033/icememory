@@ -1467,7 +1467,7 @@
                     const sortedItems = Object.entries(stats.items).sort((a, b) => b[1] - a[1]);
                     let topItemStr = '無';
                     if (sortedItems.length > 0) {
-                        topItemStr = sortedItems[0][1] === 1 ? '🌟 隨機喝 (皆不同)' : sortedItems[0][0];
+                        topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮' : sortedItems[0][0];
                     }
                     return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
