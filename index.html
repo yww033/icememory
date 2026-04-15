@@ -1360,6 +1360,7 @@
         // --- 3. 歷史與報表 (History View) ---
         function HistoryView({ records, categories, settings, deleteRecord, updateRecord, viewMonth, onPrevMonth, onNextMonth, holidays }) {
             const [searchTerm, setSearchTerm] = useState('');
+            const [selectedShop, setSelectedShop] = useState(null); // 控制情報卡彈窗
             const [editingRecord, setEditingRecord] = useState(null);
             const [collapsedGroups, setCollapsedGroups] = useState({});
             const toggleGroup = (groupName) => { setCollapsedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] })); };
@@ -1426,6 +1427,7 @@
             }, [filteredRecords, timeScale, viewMonth, viewYear, customEnd, holidays, settings.avgCalcMethod]);
 
             // 1. 綜合熱門常客榜 (依「次數」排名，次數相同則依「金額」)
+            // 1. 綜合熱門常客榜 (升級防呆邏輯與細節打包)
             const generalReport = useMemo(() => {
                 const shopStats = {};
                 filteredRecords.forEach(r => {
@@ -1438,12 +1440,17 @@
                     shopStats[shop].items[itemKey] = (shopStats[shop].items[itemKey] || 0) + 1;
                 });
                 return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
-                    const topItem = Object.entries(stats.items).sort((a, b) => b[1] - a[1])[0];
-                    return { shopName, total: stats.total, count: stats.count, topItem: topItem ? topItem[0] : '無' };
+                    const sortedItems = Object.entries(stats.items).sort((a, b) => b[1] - a[1]);
+                    let topItemStr = '無';
+                    if (sortedItems.length > 0) {
+                        // 防呆邏輯：最高次數只有 1，代表每次都點不一樣
+                        topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮 (皆不同)' : sortedItems[0][0];
+                    }
+                    return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
             }, [filteredRecords]);
 
-            // 2. 手搖飲金賞 (改為依「杯數」排名，杯數相同則依「金額」)
+            // 2. 手搖飲金賞 (升級防呆邏輯與細節打包)
             const drinkReport = useMemo(() => {
                 const drinks = filteredRecords.filter(r => DRINK_CATEGORIES.includes(r.categoryId));
                 const shopStats = {};
@@ -1457,8 +1464,12 @@
                     shopStats[shop].items[itemKey] = (shopStats[shop].items[itemKey] || 0) + 1;
                 });
                 return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
-                    const topItem = Object.entries(stats.items).sort((a, b) => b[1] - a[1])[0];
-                    return { shopName, total: stats.total, count: stats.count, topItem: topItem ? topItem[0] : '無' };
+                    const sortedItems = Object.entries(stats.items).sort((a, b) => b[1] - a[1]);
+                    let topItemStr = '無';
+                    if (sortedItems.length > 0) {
+                        topItemStr = sortedItems[0][1] === 1 ? '🌟 隨機喝 (皆不同)' : sortedItems[0][0];
+                    }
+                    return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
             }, [filteredRecords]);
 
@@ -1513,7 +1524,7 @@
                                     <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-crown text-yellow-500"></i> {reportTitle}熱門常客榜</h3>
                                     <div className="space-y-4">
                                         {generalReport.map((shop, index) => (
-                                            <div key={shop.shopName} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0">
+                                            <div key={shop.shopName} onClick={() => setSelectedShop(shop)} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0 cursor-pointer hover:bg-white/60 px-2 rounded-lg transition-colors active:scale-[0.98]">
                                                 <div className="flex justify-between items-center mb-1">
                                                     <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
                                                     <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}次)</span></span>
@@ -1531,7 +1542,7 @@
                                     <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-trophy text-[#A56B5D]"></i> {reportTitle}手搖飲金賞</h3>
                                     <div className="space-y-4">
                                         {drinkReport.map((shop, index) => (
-                                            <div key={shop.shopName} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0">
+                                           <div key={shop.shopName} onClick={() => setSelectedShop(shop)} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0 cursor-pointer hover:bg-white/60 px-2 rounded-lg transition-colors active:scale-[0.98]">
                                                 <div className="flex justify-between items-center mb-1">
                                                     <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
                                                     <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}杯)</span></span>
@@ -1652,9 +1663,42 @@
                     </div>
 
                     {editingRecord && (<EditModal record={editingRecord} categories={categories} onClose={() => setEditingRecord(null)} onSave={(updatedRecord) => { updateRecord(updatedRecord); setEditingRecord(null); }} />)}
+
+                    {/* 店家詳細情報卡 Modal */}
+                    {selectedShop && (
+                        <div className="fixed inset-0 bg-brand-5/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setSelectedShop(null); }}>
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-fade-in border border-brand-1/20">
+                                <div className="p-6 pb-4 border-b border-brand-1/50 bg-[#FAF7F2] relative">
+                                    <button onClick={() => setSelectedShop(null)} className="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-brand-4 hover:text-brand-5 shadow-sm flex items-center justify-center transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                                    <h3 className="text-xl font-black text-brand-5 mb-1"><i className="fa-solid fa-store mr-2 text-brand-3"></i>{selectedShop.shopName}</h3>
+                                    <div className="flex gap-3 text-xs font-semibold mt-3">
+                                        <span className="bg-brand-1/40 text-brand-5 px-3 py-1.5 rounded-lg border border-brand-2/20">總消費: <span className="text-[#A56B5D]">${selectedShop.total.toLocaleString()}</span></span>
+                                        <span className="bg-brand-1/40 text-brand-5 px-3 py-1.5 rounded-lg border border-brand-2/20">造訪: <span className="text-brand-3">{selectedShop.count} 次</span></span>
+                                    </div>
+                                </div>
+                                <div className="p-6 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                                    <h4 className="text-[10px] uppercase tracking-widest font-bold text-brand-2 mb-3">品項點擊次數排行榜</h4>
+                                    <div className="space-y-2">
+                                        {selectedShop.allItems.map(([itemName, count], idx) => (
+                                            <div key={itemName} className="flex justify-between items-center p-3 rounded-xl bg-brand-1/10 border border-brand-1/50">
+                                                <span className="text-sm font-semibold text-brand-5 flex items-center gap-2">
+                                                    {idx === 0 && count > 1 ? <i className="fa-solid fa-medal text-yellow-500"></i> : <span className="w-4"></span>}
+                                                    {itemName}
+                                                </span>
+                                                <span className="text-xs font-bold bg-white text-brand-4 px-2 py-1 rounded shadow-sm">{count} 次</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             );
         }
+
+        // --- 4. 設定頁面 (Settings View) ---
 
 
 
