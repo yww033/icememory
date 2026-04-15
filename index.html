@@ -1507,6 +1507,49 @@
             const avgLabel = settings.avgCalcMethod === 'workdays' ? '工作日平均' : '每日平均';
             const avgIcon = settings.avgCalcMethod === 'workdays' ? 'fa-briefcase' : 'fa-calendar-day';
 
+            // 💀 殘酷月度比較引擎 (Month-over-Month)
+            const momStats = useMemo(() => {
+                if (timeScale !== 'monthly') return null; // 只有在「月度」模式才啟動
+
+                const currentStart = viewMonth.getTime();
+                const currentEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+
+                const lastMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+                const lastStart = lastMonth.getTime();
+                const lastEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+
+                const currentTotal = records.filter(r => r.date >= currentStart && r.date <= currentEnd).reduce((sum, r) => sum + r.price, 0);
+                const lastTotal = records.filter(r => r.date >= lastStart && r.date <= lastEnd).reduce((sum, r) => sum + r.price, 0);
+
+                if (lastTotal === 0) return { text: '上月無資料', color: 'text-brand-4', bg: 'bg-brand-1/20', icon: 'fa-minus' };
+
+                const diff = currentTotal - lastTotal;
+                const percent = Math.round((Math.abs(diff) / lastTotal) * 100);
+
+                if (diff > 0) return { text: `比上月多花 $${diff.toLocaleString()} (+${percent}%)`, color: 'text-[#A56B5D]', bg: 'bg-[#FDF3F3]', icon: 'fa-arrow-trend-up' };
+                if (diff < 0) return { text: `比上月省下 $${Math.abs(diff).toLocaleString()} (-${percent}%)`, color: 'text-green-600', bg: 'bg-green-50', icon: 'fa-arrow-trend-down' };
+                return { text: '與上月完全持平', color: 'text-brand-4', bg: 'bg-brand-1/20', icon: 'fa-minus' };
+            }, [records, viewMonth, timeScale]);
+
+            // 🧋 飲料殘酷比較引擎
+            const drinkMomStats = useMemo(() => {
+                if (timeScale !== 'monthly') return null;
+                const currentStart = viewMonth.getTime();
+                const currentEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+                const lastMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+                const lastStart = lastMonth.getTime();
+                const lastEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+
+                const currentDrinks = records.filter(r => r.date >= currentStart && r.date <= currentEnd && DRINK_CATEGORIES.includes(r.categoryId)).length;
+                const lastDrinks = records.filter(r => r.date >= lastStart && r.date <= lastEnd && DRINK_CATEGORIES.includes(r.categoryId)).length;
+
+                if (lastDrinks === 0 && currentDrinks === 0) return null;
+
+                const diff = currentDrinks - lastDrinks;
+                if (diff > 0) return { text: `手搖飲比上月多喝 ${diff} 杯 🚨`, color: 'text-[#A56B5D]' };
+                if (diff < 0) return { text: `手搖飲比上月少喝 ${Math.abs(diff)} 杯 👏`, color: 'text-brand-3' };
+                return { text: `手搖飲杯數與上月持平`, color: 'text-brand-4' };
+            }, [records, viewMonth, timeScale]);
             return (
                 <div className="flex flex-col gap-6 animate-fade-in h-full pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
@@ -1627,14 +1670,28 @@
                         <div className="w-full lg:w-[35%] flex flex-col gap-6 lg:sticky lg:top-0">
                             <div className="card-panel p-6 flex flex-col items-center w-full relative overflow-hidden">
                                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-brand-3/10 rounded-full blur-xl"></div>
-                                <h3 className="text-sm font-semibold text-brand-5 mb-2 w-full text-left">{reportTitle}總花費</h3>
-                                <p className="text-3xl font-bold text-brand-5 w-full text-left mb-3">${totalExpense.toLocaleString()}</p>
+                                <h3 className="text-sm font-semibold text-brand-5 mb-1 w-full text-left">{reportTitle}總花費</h3>
+                                <p className="text-4xl font-black text-brand-5 w-full text-left mb-3 tracking-tight">${totalExpense.toLocaleString()}</p>
+
+                                {/* 💀 殘酷比較視覺標籤 */}
+                                {momStats && (
+                                    <div className="w-full flex flex-col gap-2 mb-5">
+                                        <span className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center w-fit gap-1.5 ${momStats.bg} ${momStats.color} border border-current/10 shadow-sm`}>
+                                            <i className={`fa-solid ${momStats.icon}`}></i> {momStats.text}
+                                        </span>
+                                        {drinkMomStats && (
+                                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center w-fit gap-1 bg-white border border-brand-1/50 ${drinkMomStats.color}`}>
+                                                {drinkMomStats.text}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* 根據設定動態顯示平均 */}
-                                <div className="w-full text-left mb-6 pb-4 border-b border-brand-1/50">
-                                    <span className="text-xs font-semibold text-brand-4 bg-brand-1/30 px-3 py-1.5 rounded-lg shadow-sm">
+                                <div className="w-full text-left mb-6 pb-5 border-b border-brand-1/50">
+                                    <span className="text-xs font-bold text-brand-4 bg-brand-1/20 border border-brand-1/50 px-3 py-2 rounded-lg shadow-sm">
                                         <i className={`fa-solid ${avgIcon} mr-1.5 text-brand-3`}></i>
-                                        {avgLabel}：${dynamicAvg.toLocaleString()} / 天
+                                        {avgLabel}：<span className="text-brand-5 ml-1">${dynamicAvg.toLocaleString()}</span> / 天
                                     </span>
                                 </div>
 
