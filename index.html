@@ -1444,7 +1444,7 @@
                     let topItemStr = '無';
                     if (sortedItems.length > 0) {
                         // 防呆邏輯：最高次數只有 1，代表每次都點不一樣
-                        topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮 (皆不同)' : sortedItems[0][0];
+                        topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮' : sortedItems[0][0];
                     }
                     return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
