@@ -1465,7 +1465,7 @@
                 return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
                     const sortedItems = Object.entries(stats.items).sort((a, b) => b[1] - a[1]);
                     let topItemStr = '無';
-                    if (sortedItems.length > 0) topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮 (皆不同)' : sortedItems[0][0];
+                    if (sortedItems.length > 0) topItemStr = sortedItems[0][1] === 1 ? '🌟 嘗鮮吃' : sortedItems[0][0];
                     return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
             }, [filteredRecords]);
@@ -1484,7 +1484,7 @@
                 return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
                     const sortedItems = Object.entries(stats.items).sort((a, b) => b[1] - a[1]);
                     let topItemStr = '無';
-                    if (sortedItems.length > 0) topItemStr = sortedItems[0][1] === 1 ? '🌟 隨機喝 (皆不同)' : sortedItems[0][0];
+                    if (sortedItems.length > 0) topItemStr = sortedItems[0][1] === 1 ? '🌟 嘗鮮喝' : sortedItems[0][0];
                     return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
             }, [filteredRecords]);
