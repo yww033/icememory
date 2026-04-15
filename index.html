@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ICEMemory</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath fill='%23697F93' d='M440.65 204.57h-99.3l52.12-52.12c4.69-4.69 4.69-12.28 0-16.97l-16.97-16.97c-4.69-4.69-12.28-4.69-16.97 0l-71.18 71.18V90.41c0-6.63-5.37-12-12-12h-24c-6.63 0-12 5.37-12 12v99.29l-71.18-71.18c-4.69-4.69-12.28-4.69-16.97 0l-16.97 16.97c-4.69 4.69-4.69 12.28 0 16.97l52.12 52.12H13.35c-6.63 0-12 5.37-12 12v24c0 6.63 5.37 12 12 12h99.3l-52.12 52.12c-4.69 4.69-4.69 12.28 0 16.97l16.97 16.97c4.69 4.69 12.28 4.69 16.97 0l71.18-71.18v99.29c0 6.63 5.37 12 12 12h24c6.63 0 12-5.37 12-12v-99.29l71.18 71.18c4.69 4.69 12.28 4.69 16.97 0l16.97-16.97c4.69-4.69 4.69-12.28 0-16.97l-52.12-52.12h99.3c6.63 0 12-5.37 12-12v-24c0-6.63-5.37-12-12-12z'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath fill='%23697F93' d='M440.65 204.57h-99.3l52.12-52.12c4.69-4.69 4.69-12.28 0-16.97l-16.97-16.97c-4.69-4.69-12.28-4.69-16.97 0l-71.18 71.18V90.41c0-6.63-5.37-12-12-12h-24c-6.63 0-12 5.37-12 12v99.29l-71.18-71.18c-4.69-4.69-12.28-4.69-16.97 0l-16.97 16.97c-4.69 4.69-4.69 12.28 0 16.97l52.12 52.12H13.35c-6.63 0-12 5.37-12 12v24c0 6.63 5.37 12 12 12h99.3l-52.12 52.12c-4.69 4.69-4.69 12.28 0 16.97l16.97 16.97c4.69 4.69 12.28 4.69 16.97 0l71.18-71.18v99.29c0 6.63 5.37 12 12 12h24c6.63 0 12-5.37 12-12v-99.29l71.18 71.18c4.69 4.69 12.28 4.69 16.97 0l16.97-16.97c4.69-4.69 4.69-12.28 0-16.97l-52.12-52.12h99.3c6.63 0 12-5.37 12-12v-24c0-6.63-5.37-12-12-12z'/%3E%3C/svg%3E">
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -204,11 +205,11 @@
             // 請將你在 Firebase 申請的 config 貼在這邊的引號內
             // 如果保持 "YOUR_API_KEY"，系統會自動切換為「本地單機模式」，資料不會遺失！
             apiKey: "AIzaSyCggdg-eIOKAPt95TiE3jI4Q_Ae_bUjKEo",
-           authDomain: "icememory-6ad56.firebaseapp.com",
-           projectId: "icememory-6ad56",
-           storageBucket: "icememory-6ad56.firebasestorage.app",
-           messagingSenderId: "496500713930",
-           appId: "1:496500713930:web:ae75be464177b1bbb50733"
+            authDomain: "icememory-6ad56.firebaseapp.com",
+            projectId: "icememory-6ad56",
+            storageBucket: "icememory-6ad56.firebasestorage.app",
+            messagingSenderId: "496500713930",
+            appId: "1:496500713930:web:ae75be464177b1bbb50733"
         };
 
         // 判斷是否為雲端模式 (根據有無填入真實 Key 或是否在 Canvas 預覽環境)
@@ -651,7 +652,7 @@
                     }
                 }
             };
-// --- 雲端批次匯入引擎 (修復匯入無法同步的 Bug) ---
+            // --- 雲端批次匯入引擎 (修復匯入無法同步的 Bug) ---
             const importRecords = async (importedData) => {
                 if (isCloudMode && user && fbDB) {
                     try {
@@ -1358,18 +1359,25 @@
         }
 
         // --- 3. 歷史與報表 (History View) ---
+        // ==========================================
+        // 3. 歷史與報表 (History View) - 雙模式 Bento Box 旗艦版
+        // ==========================================
         function HistoryView({ records, categories, settings, deleteRecord, updateRecord, viewMonth, onPrevMonth, onNextMonth, holidays }) {
             const [searchTerm, setSearchTerm] = useState('');
-            const [selectedShop, setSelectedShop] = useState(null); // 控制情報卡彈窗
             const [editingRecord, setEditingRecord] = useState(null);
+            const [selectedShop, setSelectedShop] = useState(null); // 情報卡彈窗
             const [collapsedGroups, setCollapsedGroups] = useState({});
             const toggleGroup = (groupName) => { setCollapsedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] })); };
+
+            // 🌟 UI 狀態：雙模式切換 (insights = 數據洞察, list = 歷史明細)
+            const [reportMode, setReportMode] = useState('insights');
 
             const [timeScale, setTimeScale] = useState('monthly');
             const [viewYear, setViewYear] = useState(() => viewMonth.getFullYear());
             const [customStart, setCustomStart] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split('T')[0]; });
             const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().split('T')[0]);
 
+            // --- 底層引擎 (維持不變，持續精準運算) ---
             const filteredRecords = useMemo(() => {
                 if (timeScale === 'monthly') {
                     const start = viewMonth.getTime(); const end = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
@@ -1387,37 +1395,23 @@
             const displayRecords = sortedRecords.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()) || (r.payer && r.payer.toLowerCase().includes(searchTerm.toLowerCase())) || (r.memo && r.memo.toLowerCase().includes(searchTerm.toLowerCase())));
 
             const catStats = filteredRecords.reduce((acc, curr) => { acc[curr.categoryId] = (acc[curr.categoryId] || 0) + Number(curr.price); return acc; }, {});
-            const topItems = Object.entries(filteredRecords.reduce((acc, curr) => { acc[curr.name] = (acc[curr.name] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 3);
             const totalExpense = filteredRecords.reduce((sum, r) => sum + r.price, 0);
 
-            // 平均花費計算：依照使用者的設定切換 (workdays 或是 alldays)
             const dynamicAvg = useMemo(() => {
                 if (filteredRecords.length === 0) return 0;
-
                 const isWorkingDay = (timestamp) => {
                     const d = new Date(timestamp);
                     const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
                     if (holidays && holidays[dateStr]) return !holidays[dateStr].isHoliday;
                     const day = d.getDay(); return day >= 1 && day <= 5;
                 };
-
                 let validTotal = 0;
-                filteredRecords.forEach(r => {
-                    if (settings.avgCalcMethod === 'all_days' || isWorkingDay(r.date)) validTotal += r.price;
-                });
-
+                filteredRecords.forEach(r => { if (settings.avgCalcMethod === 'all_days' || isWorkingDay(r.date)) validTotal += r.price; });
                 const startTimestamp = Math.min(...filteredRecords.map(r => r.date));
                 if (!startTimestamp || !isFinite(startTimestamp)) return 0;
-
                 let current = new Date(timeScale === 'monthly' ? viewMonth.getTime() : startTimestamp);
-                let endLimit = Date.now();
-                if (timeScale === 'monthly') endLimit = Math.min(Date.now(), new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getTime());
-                else if (timeScale === 'yearly') endLimit = Math.min(Date.now(), new Date(viewYear, 11, 31, 23, 59, 59, 999).getTime());
-                else endLimit = Math.min(Date.now(), new Date(customEnd).getTime() + 86399999);
-
-                const endDate = new Date(endLimit);
-                current.setHours(0, 0, 0, 0); endDate.setHours(23, 59, 59, 999);
-
+                let endLimit = timeScale === 'monthly' ? Math.min(Date.now(), new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getTime()) : (timeScale === 'yearly' ? Math.min(Date.now(), new Date(viewYear, 11, 31, 23, 59, 59, 999).getTime()) : Math.min(Date.now(), new Date(customEnd).getTime() + 86399999));
+                const endDate = new Date(endLimit); current.setHours(0, 0, 0, 0); endDate.setHours(23, 59, 59, 999);
                 let validDaysCount = 0;
                 while (current <= endDate) {
                     if (settings.avgCalcMethod === 'all_days' || isWorkingDay(current.getTime())) validDaysCount++;
@@ -1426,14 +1420,43 @@
                 return validDaysCount > 0 ? Math.round(validTotal / validDaysCount) : 0;
             }, [filteredRecords, timeScale, viewMonth, viewYear, customEnd, holidays, settings.avgCalcMethod]);
 
-            // 1. 綜合熱門常客榜 (依「次數」排名，次數相同則依「金額」)
-            // 1. 綜合熱門常客榜 (升級防呆邏輯與細節打包)
+            // 💀 殘酷月度比較引擎
+            const momStats = useMemo(() => {
+                if (timeScale !== 'monthly') return null;
+                const currentStart = viewMonth.getTime();
+                const currentEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+                const lastMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+                const lastStart = lastMonth.getTime();
+                const lastEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+                const currentTotal = records.filter(r => r.date >= currentStart && r.date <= currentEnd).reduce((sum, r) => sum + r.price, 0);
+                const lastTotal = records.filter(r => r.date >= lastStart && r.date <= lastEnd).reduce((sum, r) => sum + r.price, 0);
+                if (lastTotal === 0) return { text: '上月無資料', color: 'text-brand-4', bg: 'bg-brand-1/20', icon: 'fa-minus' };
+                const diff = currentTotal - lastTotal;
+                const percent = Math.round((Math.abs(diff) / lastTotal) * 100);
+                if (diff > 0) return { text: `比上月多花 $${diff.toLocaleString()} (+${percent}%)`, color: 'text-[#A56B5D]', bg: 'bg-[#FDF3F3]', icon: 'fa-arrow-trend-up' };
+                if (diff < 0) return { text: `比上月省下 $${Math.abs(diff).toLocaleString()} (-${percent}%)`, color: 'text-green-600', bg: 'bg-green-50', icon: 'fa-arrow-trend-down' };
+                return { text: '與上月完全持平', color: 'text-brand-4', bg: 'bg-brand-1/20', icon: 'fa-minus' };
+            }, [records, viewMonth, timeScale]);
+
+            // 🧋 飲料殘酷比較引擎
+            const drinkMomStats = useMemo(() => {
+                if (timeScale !== 'monthly') return null;
+                const currentStart = viewMonth.getTime(); const currentEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+                const lastMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1); const lastStart = lastMonth.getTime(); const lastEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+                const currentDrinks = records.filter(r => r.date >= currentStart && r.date <= currentEnd && DRINK_CATEGORIES.includes(r.categoryId)).length;
+                const lastDrinks = records.filter(r => r.date >= lastStart && r.date <= lastEnd && DRINK_CATEGORIES.includes(r.categoryId)).length;
+                if (lastDrinks === 0 && currentDrinks === 0) return null;
+                const diff = currentDrinks - lastDrinks;
+                if (diff > 0) return { text: `手搖飲比上月多喝 ${diff} 杯 🚨`, color: 'text-[#A56B5D]' };
+                if (diff < 0) return { text: `手搖飲比上月少喝 ${Math.abs(diff)} 杯 👏`, color: 'text-brand-3' };
+                return { text: `手搖飲杯數與上月持平`, color: 'text-brand-4' };
+            }, [records, viewMonth, timeScale]);
+
+            // 綜合熱門常客榜
             const generalReport = useMemo(() => {
                 const shopStats = {};
                 filteredRecords.forEach(r => {
-                    const parts = r.name.trim().split(' ');
-                    const shop = parts.length > 1 ? parts[0] : (r.name || '未命名');
-                    const item = parts.length > 1 ? parts.slice(1).join(' ') : '單品';
+                    const parts = r.name.trim().split(' '); const shop = parts.length > 1 ? parts[0] : (r.name || '未命名'); const item = parts.length > 1 ? parts.slice(1).join(' ') : '單品';
                     if (!shopStats[shop]) shopStats[shop] = { total: 0, count: 0, items: {} };
                     shopStats[shop].total += r.price; shopStats[shop].count += 1;
                     const itemKey = `${item}${r.sugar && r.ice ? ` (${r.sugar}/${r.ice})` : ''}`;
@@ -1442,22 +1465,17 @@
                 return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
                     const sortedItems = Object.entries(stats.items).sort((a, b) => b[1] - a[1]);
                     let topItemStr = '無';
-                    if (sortedItems.length > 0) {
-                        // 防呆邏輯：最高次數只有 1，代表每次都點不一樣
-                        topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮' : sortedItems[0][0];
-                    }
+                    if (sortedItems.length > 0) topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮 (皆不同)' : sortedItems[0][0];
                     return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
             }, [filteredRecords]);
 
-            // 2. 手搖飲金賞 (升級防呆邏輯與細節打包)
+            // 手搖飲金賞
             const drinkReport = useMemo(() => {
                 const drinks = filteredRecords.filter(r => DRINK_CATEGORIES.includes(r.categoryId));
                 const shopStats = {};
                 drinks.forEach(r => {
-                    const parts = r.name.trim().split(' ');
-                    const shop = parts.length > 1 ? parts[0] : (r.name || '未命名飲料');
-                    const item = parts.length > 1 ? parts.slice(1).join(' ') : '單品';
+                    const parts = r.name.trim().split(' '); const shop = parts.length > 1 ? parts[0] : (r.name || '未命名飲料'); const item = parts.length > 1 ? parts.slice(1).join(' ') : '單品';
                     if (!shopStats[shop]) shopStats[shop] = { total: 0, count: 0, items: {} };
                     shopStats[shop].total += r.price; shopStats[shop].count += 1;
                     const itemKey = `${item}${r.sugar && r.ice ? ` (${r.sugar}/${r.ice})` : ''}`;
@@ -1466,37 +1484,24 @@
                 return Object.entries(shopStats).sort((a, b) => (b[1].count - a[1].count) || (b[1].total - a[1].total)).slice(0, 3).map(([shopName, stats]) => {
                     const sortedItems = Object.entries(stats.items).sort((a, b) => b[1] - a[1]);
                     let topItemStr = '無';
-                    if (sortedItems.length > 0) {
-                        topItemStr = sortedItems[0][1] === 1 ? '🌟 愛嘗鮮' : sortedItems[0][0];
-                    }
+                    if (sortedItems.length > 0) topItemStr = sortedItems[0][1] === 1 ? '🌟 隨機喝 (皆不同)' : sortedItems[0][0];
                     return { shopName, total: stats.total, count: stats.count, topItem: topItemStr, allItems: sortedItems };
                 });
             }, [filteredRecords]);
-// 3. 星期熱區統計引擎 (統計週一至週日的消費總額與次數)
+
+            // 星期熱區統計引擎
             const dayOfWeekStats = useMemo(() => {
-                const stats = [
-                    { day: '週日', amount: 0, count: 0 },
-                    { day: '週一', amount: 0, count: 0 },
-                    { day: '週二', amount: 0, count: 0 },
-                    { day: '週三', amount: 0, count: 0 },
-                    { day: '週四', amount: 0, count: 0 },
-                    { day: '週五', amount: 0, count: 0 },
-                    { day: '週六', amount: 0, count: 0 },
-                ];
-                filteredRecords.forEach(r => {
-                    const dayIndex = new Date(r.date).getDay(); // 0 是週日
-                    stats[dayIndex].amount += r.price;
-                    stats[dayIndex].count += 1;
-                });
+                const stats = [{ day: '週日', amount: 0 }, { day: '週一', amount: 0 }, { day: '週二', amount: 0 }, { day: '週三', amount: 0 }, { day: '週四', amount: 0 }, { day: '週五', amount: 0 }, { day: '週六', amount: 0 }];
+                filteredRecords.forEach(r => { stats[new Date(r.date).getDay()].amount += r.price; });
                 const maxAmount = Math.max(...stats.map(s => s.amount), 1);
                 return stats.map(s => ({ ...s, ratio: (s.amount / maxAmount) * 100 }));
             }, [filteredRecords]);
+
             const groupedRecords = useMemo(() => {
                 if (timeScale === 'monthly') return { '該月明細': displayRecords };
                 const groups = {};
                 displayRecords.forEach(r => {
-                    const d = new Date(r.date);
-                    const key = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+                    const d = new Date(r.date); const key = `${d.getFullYear()}年${d.getMonth() + 1}月`;
                     if (!groups[key]) groups[key] = [];
                     groups[key].push(r);
                 });
@@ -1507,206 +1512,125 @@
             const avgLabel = settings.avgCalcMethod === 'workdays' ? '工作日平均' : '每日平均';
             const avgIcon = settings.avgCalcMethod === 'workdays' ? 'fa-briefcase' : 'fa-calendar-day';
 
-            // 💀 殘酷月度比較引擎 (Month-over-Month)
-            const momStats = useMemo(() => {
-                if (timeScale !== 'monthly') return null; // 只有在「月度」模式才啟動
-
-                const currentStart = viewMonth.getTime();
-                const currentEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-
-                const lastMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
-                const lastStart = lastMonth.getTime();
-                const lastEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-
-                const currentTotal = records.filter(r => r.date >= currentStart && r.date <= currentEnd).reduce((sum, r) => sum + r.price, 0);
-                const lastTotal = records.filter(r => r.date >= lastStart && r.date <= lastEnd).reduce((sum, r) => sum + r.price, 0);
-
-                if (lastTotal === 0) return { text: '上月無資料', color: 'text-brand-4', bg: 'bg-brand-1/20', icon: 'fa-minus' };
-
-                const diff = currentTotal - lastTotal;
-                const percent = Math.round((Math.abs(diff) / lastTotal) * 100);
-
-                if (diff > 0) return { text: `比上月多花 $${diff.toLocaleString()} (+${percent}%)`, color: 'text-[#A56B5D]', bg: 'bg-[#FDF3F3]', icon: 'fa-arrow-trend-up' };
-                if (diff < 0) return { text: `比上月省下 $${Math.abs(diff).toLocaleString()} (-${percent}%)`, color: 'text-green-600', bg: 'bg-green-50', icon: 'fa-arrow-trend-down' };
-                return { text: '與上月完全持平', color: 'text-brand-4', bg: 'bg-brand-1/20', icon: 'fa-minus' };
-            }, [records, viewMonth, timeScale]);
-
-            // 🧋 飲料殘酷比較引擎
-            const drinkMomStats = useMemo(() => {
-                if (timeScale !== 'monthly') return null;
-                const currentStart = viewMonth.getTime();
-                const currentEnd = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-                const lastMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
-                const lastStart = lastMonth.getTime();
-                const lastEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-
-                const currentDrinks = records.filter(r => r.date >= currentStart && r.date <= currentEnd && DRINK_CATEGORIES.includes(r.categoryId)).length;
-                const lastDrinks = records.filter(r => r.date >= lastStart && r.date <= lastEnd && DRINK_CATEGORIES.includes(r.categoryId)).length;
-
-                if (lastDrinks === 0 && currentDrinks === 0) return null;
-
-                const diff = currentDrinks - lastDrinks;
-                if (diff > 0) return { text: `手搖飲比上月多喝 ${diff} 杯 🚨`, color: 'text-[#A56B5D]' };
-                if (diff < 0) return { text: `手搖飲比上月少喝 ${Math.abs(diff)} 杯 👏`, color: 'text-brand-3' };
-                return { text: `手搖飲杯數與上月持平`, color: 'text-brand-4' };
-            }, [records, viewMonth, timeScale]);
             return (
                 <div className="flex flex-col gap-6 animate-fade-in h-full pb-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-                        <h2 className="text-2xl font-bold text-brand-5 hidden md:block tracking-tight">歷史與報表</h2>
+                    {/* --- 全域頂部控制列 --- */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-4">
+                        <h2 className="text-2xl font-bold text-brand-5 tracking-tight flex items-center gap-2">
+                            <i className="fa-solid fa-file-invoice text-brand-3"></i> 歷史與報表
+                        </h2>
+
+                        {/* 🌟 核心升級：雙模式切換 (Segmented Control) */}
+                        <div className="flex bg-brand-1/30 p-1.5 rounded-xl shadow-inner w-full md:w-auto relative">
+                            <button onClick={() => setReportMode('insights')} className={`flex-1 md:w-32 py-2 text-sm font-bold rounded-lg transition-all z-10 ${reportMode === 'insights' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>
+                                <i className="fa-solid fa-chart-column mr-1.5"></i>數據洞察
+                            </button>
+                            <button onClick={() => setReportMode('list')} className={`flex-1 md:w-32 py-2 text-sm font-bold rounded-lg transition-all z-10 ${reportMode === 'list' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>
+                                <i className="fa-solid fa-list-ul mr-1.5"></i>歷史明細
+                            </button>
+                        </div>
+
+                        {/* 時間維度切換 */}
                         <div className="flex bg-brand-1/40 p-1 rounded-xl shadow-inner w-full md:w-auto">
-                            <button onClick={() => setTimeScale('monthly')} className={`flex-1 md:w-24 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'monthly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>月度</button>
-                            <button onClick={() => setTimeScale('yearly')} className={`flex-1 md:w-24 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'yearly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>年度</button>
-                            <button onClick={() => setTimeScale('custom')} className={`flex-1 md:w-24 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'custom' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>自訂</button>
+                            <button onClick={() => setTimeScale('monthly')} className={`flex-1 md:w-20 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'monthly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>月度</button>
+                            <button onClick={() => setTimeScale('yearly')} className={`flex-1 md:w-20 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'yearly' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>年度</button>
+                            <button onClick={() => setTimeScale('custom')} className={`flex-1 md:w-20 py-1.5 text-xs font-bold rounded-lg transition-all ${timeScale === 'custom' ? 'bg-white text-brand-5 shadow-sm' : 'text-brand-4 hover:text-brand-5'}`}>自訂</button>
                         </div>
                     </div>
 
+                    {/* 時間導覽器 */}
                     {timeScale === 'monthly' && <MonthNavigator viewMonth={viewMonth} onPrev={onPrevMonth} onNext={onNextMonth} />}
                     {timeScale === 'yearly' && (
-                        <div className="flex items-center justify-between card-panel px-4 py-3 mb-6 w-full max-w-sm mx-auto md:mx-0">
+                        <div className="flex items-center justify-between card-panel px-4 py-3 mb-4 w-full max-w-sm mx-auto md:mx-0">
                             <button onClick={() => setViewYear(y => y - 1)} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-left text-sm"></i></button>
                             <span className="font-bold text-brand-5 text-base flex items-center gap-2"><i className="fa-regular fa-calendar text-brand-3"></i> {viewYear} 年度</span>
                             <button onClick={() => setViewYear(y => y + 1)} className="w-8 h-8 rounded-lg text-brand-4 hover:bg-brand-1/50 transition-colors flex items-center justify-center active:scale-95"><i className="fa-solid fa-chevron-right text-sm"></i></button>
                         </div>
                     )}
                     {timeScale === 'custom' && (
-                        <div className="flex items-center gap-2 card-panel px-4 py-3 mb-6 w-full max-w-sm mx-auto md:mx-0">
+                        <div className="flex items-center gap-2 card-panel px-4 py-3 mb-4 w-full max-w-sm mx-auto md:mx-0">
                             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-transparent text-sm font-bold text-brand-5 outline-none w-full" />
                             <span className="text-brand-2">~</span>
                             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-transparent text-sm font-bold text-brand-5 outline-none w-full" />
                         </div>
                     )}
-{/* 🏆 雙欄並排：綜合熱門常客榜 & 手搖飲金賞 */}
-                    {(generalReport.length > 0 || drinkReport.length > 0) && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-6">
-                            {/* 常客榜卡片 */}
-                            {generalReport.length > 0 && (
-                                <div className="card-panel p-6 w-full bg-gradient-to-br from-white to-[#FDF3F3] border-[#E8D1D1]/50 shadow-sm">
-                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-crown text-yellow-500"></i> {reportTitle}熱門常客榜</h3>
-                                    <div className="space-y-4">
-                                        {generalReport.map((shop, index) => (
-                                            <div key={shop.shopName} onClick={() => setSelectedShop(shop)} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0 cursor-pointer hover:bg-white/60 px-2 rounded-lg transition-colors active:scale-[0.98]">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
-                                                    <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}次)</span></span>
-                                                </div>
-                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50">最常點：{shop.topItem}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
 
-                            {/* 手搖飲金賞卡片 */}
-                            {drinkReport.length > 0 && (
-                                <div className="card-panel p-6 w-full bg-gradient-to-br from-white to-brand-1/20 border-brand-3/20 shadow-sm">
-                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-trophy text-[#A56B5D]"></i> {reportTitle}手搖飲金賞</h3>
-                                    <div className="space-y-4">
-                                        {drinkReport.map((shop, index) => (
-                                           <div key={shop.shopName} onClick={() => setSelectedShop(shop)} className="flex flex-col py-2 border-b border-brand-1/50 last:border-0 cursor-pointer hover:bg-white/60 px-2 rounded-lg transition-colors active:scale-[0.98]">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
-                                                    <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}杯)</span></span>
-                                                </div>
-                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50">必點：{shop.topItem}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {/* 週間消費熱區 (Heatmap) */}
-                    {filteredRecords.length > 0 && (
-                        <div className="card-panel p-6 mb-6 bg-white border-brand-1/40 shadow-sm">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-sm font-semibold text-brand-5 flex items-center gap-2">
-                                    <i className="fa-solid fa-calendar-week text-brand-3"></i> {reportTitle}週間消費熱區
-                                </h3>
-                                <span className="text-[10px] text-brand-2 font-bold uppercase tracking-widest bg-brand-1/30 px-2 py-1 rounded">Intensity Analysis</span>
-                            </div>
-                            <div className="grid grid-cols-7 gap-2 md:gap-4 h-56 items-end pt-8 pb-1">
-                                {dayOfWeekStats.map((item, idx) => (
-                                    <div key={item.day} className="flex flex-col items-center gap-2 h-full group">
-                                        {/* 修復點 1：移除了 overflow-hidden，讓最高的提示框不會被喀掉 */}
-                                        <div className="flex-1 w-full bg-brand-1/10 rounded-t-xl relative flex flex-col justify-end">
-                                            {/* 熱力長條 - 根據金額比例動態計算高度與顏色深淺 */}
-                                            <div
-                                                className={`w-full rounded-t-lg transition-all duration-1000 ease-out relative group-hover:brightness-110`}
-                                                style={{
-                                                    height: `${item.ratio}%`,
-                                                    backgroundColor: item.ratio > 80 ? '#415365' : (item.ratio > 40 ? '#697F93' : '#9D9F97'),
-                                                    opacity: item.ratio === 0 ? 0 : (0.4 + (item.ratio / 100) * 0.6)
-                                                }}
-                                            >
-                                                {/* 修復點 2：加入 pointer-events-none 防閃爍，並提高 z-index */}
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-5 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md z-50 pointer-events-none">
-                                                    ${item.amount.toLocaleString()}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <span className={`text-[10px] md:text-xs font-bold ${idx === 0 || idx === 6 ? 'text-[#A56B5D]' : 'text-brand-4'}`}>
-                                            {item.day}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-6 pt-4 border-t border-brand-1/50 flex justify-between items-center">
-                                <p className="text-[10px] text-brand-2 font-medium">
-                                    <i className="fa-solid fa-lightbulb mr-1 text-yellow-500"></i>
-                                    小提示：{dayOfWeekStats.reduce((prev, current) => (prev.amount > current.amount) ? prev : current).day} 是你的消費高峰期！
-                                </p>
-                                <div className="flex gap-2 items-center">
-                                    <span className="w-2 h-2 rounded-full bg-brand-1/30"></span>
-                                    <span className="w-2 h-2 rounded-full bg-brand-3/60"></span>
-                                    <span className="w-2 h-2 rounded-full bg-brand-5"></span>
-                                    <span className="text-[9px] text-brand-2 font-bold uppercase tracking-tighter ml-1">Spending Intensity</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    <div className="flex flex-col lg:flex-row gap-6 items-start">
-                        {/* 左欄：圖表與排行榜 */}
-                        <div className="w-full lg:w-[35%] flex flex-col gap-6 lg:sticky lg:top-0">
-                            <div className="card-panel p-6 flex flex-col items-center w-full relative overflow-hidden">
-                                <div className="absolute -right-4 -top-4 w-24 h-24 bg-brand-3/10 rounded-full blur-xl"></div>
+                    {/* ========================================== */}
+                    {/* 📊 模式 A：數據洞察 (Bento Box 網格排版) */}
+                    {/* ========================================== */}
+                    {reportMode === 'insights' && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in pb-10">
+
+                            {/* 🍱 Bento 1: 總花費與 MoM (跨兩欄或獨立) */}
+                            <div className="card-panel p-8 lg:col-span-1 flex flex-col items-start w-full relative overflow-hidden bg-gradient-to-br from-white to-brand-1/10">
+                                <div className="absolute -right-6 -top-6 w-32 h-32 bg-brand-3/10 rounded-full blur-2xl"></div>
                                 <h3 className="text-sm font-semibold text-brand-5 mb-1 w-full text-left">{reportTitle}總花費</h3>
-                                <p className="text-4xl font-black text-brand-5 w-full text-left mb-3 tracking-tight">${totalExpense.toLocaleString()}</p>
+                                <p className="text-4xl md:text-5xl font-black text-brand-5 w-full text-left mb-4 tracking-tight">${totalExpense.toLocaleString()}</p>
 
-                                {/* 💀 殘酷比較視覺標籤 */}
                                 {momStats && (
-                                    <div className="w-full flex flex-col gap-2 mb-5">
+                                    <div className="w-full flex flex-col gap-2 mb-6">
                                         <span className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center w-fit gap-1.5 ${momStats.bg} ${momStats.color} border border-current/10 shadow-sm`}>
                                             <i className={`fa-solid ${momStats.icon}`}></i> {momStats.text}
                                         </span>
                                         {drinkMomStats && (
-                                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center w-fit gap-1 bg-white border border-brand-1/50 ${drinkMomStats.color}`}>
-                                                {drinkMomStats.text}
+                                            <span className={`text-[10px] font-bold px-2.5 py-1.5 rounded-md flex items-center w-fit gap-1.5 bg-white border border-brand-1/50 ${drinkMomStats.color} shadow-sm`}>
+                                                <i className="fa-solid fa-mug-hot"></i> {drinkMomStats.text}
                                             </span>
                                         )}
                                     </div>
                                 )}
 
-                                {/* 根據設定動態顯示平均 */}
-                                <div className="w-full text-left mb-6 pb-5 border-b border-brand-1/50">
-                                    <span className="text-xs font-bold text-brand-4 bg-brand-1/20 border border-brand-1/50 px-3 py-2 rounded-lg shadow-sm">
+                                <div className="w-full text-left mt-auto pt-5 border-t border-brand-1/50">
+                                    <span className="text-xs font-bold text-brand-4 bg-brand-1/20 border border-brand-1/50 px-3 py-2 rounded-lg shadow-sm block w-fit">
                                         <i className={`fa-solid ${avgIcon} mr-1.5 text-brand-3`}></i>
                                         {avgLabel}：<span className="text-brand-5 ml-1">${dynamicAvg.toLocaleString()}</span> / 天
                                     </span>
                                 </div>
+                            </div>
 
+                            {/* 🍱 Bento 2: 週間消費熱區 (跨兩欄寬度) */}
+                            {filteredRecords.length > 0 && (
+                                <div className="card-panel p-6 lg:col-span-2 bg-white flex flex-col justify-between">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-sm font-semibold text-brand-5 flex items-center gap-2">
+                                            <i className="fa-solid fa-calendar-week text-brand-3"></i> {reportTitle}週間消費熱區
+                                        </h3>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2 md:gap-4 h-48 items-end pt-8 pb-1">
+                                        {dayOfWeekStats.map((item, idx) => (
+                                            <div key={item.day} className="flex flex-col items-center gap-2 h-full group">
+                                                <div className="flex-1 w-full bg-brand-1/10 rounded-t-xl relative flex flex-col justify-end">
+                                                    <div className={`w-full rounded-t-lg transition-all duration-1000 ease-out relative group-hover:brightness-110`}
+                                                        style={{ height: `${item.ratio}%`, backgroundColor: item.ratio > 80 ? '#415365' : (item.ratio > 40 ? '#697F93' : '#9D9F97'), opacity: item.ratio === 0 ? 0 : (0.4 + (item.ratio / 100) * 0.6) }}>
+                                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-5 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md z-50 pointer-events-none">
+                                                            ${item.amount.toLocaleString()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span className={`text-[10px] md:text-xs font-bold ${idx === 0 || idx === 6 ? 'text-[#A56B5D]' : 'text-brand-4'}`}>{item.day}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="mt-4 pt-3 border-t border-brand-1/50 flex justify-between items-center">
+                                        <p className="text-[10px] text-brand-2 font-medium"><i className="fa-solid fa-lightbulb mr-1 text-yellow-500"></i> 小提示：{dayOfWeekStats.reduce((prev, current) => (prev.amount > current.amount) ? prev : current).day} 是你的消費高峰期！</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 🍱 Bento 3: 分類圓餅圖 */}
+                            <div className="card-panel p-6 lg:col-span-1">
+                                <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-chart-pie text-brand-3"></i> 分類花費佔比</h3>
                                 {Object.keys(catStats).length > 0 ? (
                                     <>
                                         <PieChart catStats={catStats} categories={categories} />
-                                        {timeScale !== 'monthly' && <TrendBarChart records={filteredRecords} scale={timeScale} />}
-                                        <div className="flex flex-col w-full gap-2 mt-6">
+                                        <div className="flex flex-col w-full gap-2 mt-6 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                                             {Object.entries(catStats).sort((a, b) => b[1] - a[1]).map(([catId, amount], index) => {
                                                 const catName = categories.find(c => c.id === catId)?.name || catId;
                                                 return (
                                                     <div key={catId} className="flex items-center justify-between text-xs py-1.5 border-b border-brand-1/50 last:border-0">
                                                         <div className="flex items-center gap-2">
                                                             <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
-                                                            <span className="text-brand-5">{catName}</span>
+                                                            <span className="text-brand-5 font-bold">{catName}</span>
                                                         </div>
                                                         <span className="font-semibold text-brand-4">${amount.toLocaleString()}</span>
                                                     </div>
@@ -1714,65 +1638,103 @@
                                             })}
                                         </div>
                                     </>
-                                ) : (<div className="py-12 text-brand-2 text-sm flex flex-col items-center gap-3"><i className="fa-solid fa-chart-pie text-3xl opacity-50"></i> 尚無資料</div>)}
+                                ) : (<div className="py-12 text-brand-2 text-sm flex flex-col items-center gap-3"><i className="fa-solid fa-chart-pie text-3xl opacity-30"></i> 尚無資料</div>)}
                             </div>
 
+                            {/* 🍱 Bento 4: 綜合熱門常客榜 */}
+                            {generalReport.length > 0 && (
+                                <div className="card-panel p-6 lg:col-span-1 bg-gradient-to-br from-white to-[#FDF3F3] border-[#E8D1D1]/50">
+                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-crown text-yellow-500"></i> 熱門常客榜</h3>
+                                    <div className="space-y-3">
+                                        {generalReport.map((shop, index) => (
+                                            <div key={shop.shopName} onClick={() => setSelectedShop(shop)} className="flex flex-col py-2.5 border-b border-brand-1/50 last:border-0 cursor-pointer hover:bg-white/60 px-2 rounded-lg transition-all active:scale-[0.98]">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
+                                                    <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}次)</span></span>
+                                                </div>
+                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50 shadow-sm">最常點：{shop.topItem}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
+                            {/* 🍱 Bento 5: 手搖飲金賞 */}
+                            {drinkReport.length > 0 && (
+                                <div className="card-panel p-6 lg:col-span-1 bg-gradient-to-br from-white to-brand-1/20 border-brand-3/20">
+                                    <h3 className="text-sm font-semibold text-brand-5 mb-4 flex items-center gap-2"><i className="fa-solid fa-trophy text-[#A56B5D]"></i> 手搖飲金賞</h3>
+                                    <div className="space-y-3">
+                                        {drinkReport.map((shop, index) => (
+                                            <div key={shop.shopName} onClick={() => setSelectedShop(shop)} className="flex flex-col py-2.5 border-b border-brand-1/50 last:border-0 cursor-pointer hover:bg-white/60 px-2 rounded-lg transition-all active:scale-[0.98]">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-sm font-bold text-brand-5"><span className="text-brand-3 mr-1">{['🥇', '🥈', '🥉'][index]}</span> {shop.shopName}</span>
+                                                    <span className="text-xs font-semibold text-[#A56B5D]">${shop.total.toLocaleString()} <span className="text-[10px] text-brand-2 font-normal">({shop.count}杯)</span></span>
+                                                </div>
+                                                <div className="text-[10px] text-brand-4 bg-white px-2 py-1 rounded w-fit border border-brand-1/50 shadow-sm">必點：{shop.topItem}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
+                    )}
 
-                        {/* 右欄：明細列表 (群組化) */}
-                        <div className="w-full lg:w-[65%] card-panel p-6">
+                    {/* ========================================== */}
+                    {/* 📋 模式 B：歷史明細 (沉浸式查帳模式) */}
+                    {/* ========================================== */}
+                    {reportMode === 'list' && (
+                        <div className="card-panel p-6 animate-fade-in w-full max-w-4xl mx-auto">
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                                 <h3 className="text-sm font-semibold text-brand-5 whitespace-nowrap"><i className="fa-solid fa-list-check mr-2 text-brand-3"></i>消費明細清單</h3>
-                                <div className="relative w-full md:w-64 shrink-0">
+                                <div className="relative w-full md:w-72 shrink-0">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-2"><i className="fa-solid fa-magnifying-glass text-sm"></i></span>
-                                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋品項、代墊人..." className="w-full bg-brand-1/20 border border-brand-2/30 rounded-lg pl-9 pr-8 py-2 text-brand-5 focus:border-brand-3 focus:bg-white outline-none text-sm transition-colors" />
+                                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋品項、代墊人、備註..." className="w-full bg-brand-1/20 border border-brand-2/30 rounded-xl pl-9 pr-8 py-2.5 text-brand-5 font-bold focus:border-brand-3 focus:bg-white outline-none text-sm transition-colors shadow-inner" />
                                     {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-2 hover:text-brand-5"><i className="fa-solid fa-xmark"></i></button>}
                                 </div>
                             </div>
 
                             <div className="space-y-6">
-                                {displayRecords.length === 0 && <p className="text-center text-brand-2 text-sm py-12">沒有找到符合的紀錄</p>}
-
+                                {displayRecords.length === 0 && <p className="text-center text-brand-2 text-sm py-12 font-bold">沒有找到符合的紀錄 📭</p>}
                                 {Object.entries(groupedRecords).map(([groupName, groupRecords]) => {
                                     const isCollapsed = collapsedGroups[groupName];
                                     return (
                                         <div key={groupName} className="mb-2">
                                             {timeScale !== 'monthly' && (
-                                                <div onClick={() => toggleGroup(groupName)} className="flex items-center justify-between cursor-pointer bg-brand-1/30 hover:bg-brand-1/50 px-4 py-2.5 rounded-xl transition-colors mb-3 select-none">
-                                                    <h4 className="text-sm font-bold text-brand-5">
-                                                        <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'} w-4 text-brand-3 transition-transform mr-1.5`}></i>
-                                                        {groupName} <span className="text-brand-4 ml-1 text-xs">(共 ${groupRecords.reduce((s, r) => s + r.price, 0).toLocaleString()})</span>
+                                                <div onClick={() => toggleGroup(groupName)} className="flex items-center justify-between cursor-pointer bg-brand-1/20 hover:bg-brand-1/40 px-5 py-3 rounded-xl transition-colors mb-3 select-none border border-brand-1/30">
+                                                    <h4 className="text-sm font-black text-brand-5 flex items-center">
+                                                        <i className={`fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'} w-5 text-brand-3 transition-transform mr-1`}></i>
+                                                        {groupName} <span className="text-brand-4 ml-2 text-xs font-semibold">(共 ${groupRecords.reduce((s, r) => s + r.price, 0).toLocaleString()})</span>
                                                     </h4>
-                                                    <span className="text-xs font-bold text-brand-3">{groupRecords.length} 筆</span>
+                                                    <span className="text-xs font-bold text-brand-3 bg-white px-2 py-1 rounded shadow-sm">{groupRecords.length} 筆</span>
                                                 </div>
                                             )}
-
                                             {!isCollapsed && (
                                                 <div className="space-y-2 animate-fade-in">
                                                     {groupRecords.map(record => {
                                                         const cat = categories.find(c => c.id === record.categoryId) || categories[0];
                                                         const dateStr = new Date(record.date).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                                                         return (
-                                                            <div key={record.id} className="p-3 rounded-xl flex items-center justify-between group hover:bg-brand-1/30 transition-colors border border-transparent hover:border-brand-2/20">
-                                                                <div className="flex items-center gap-4">
-                                                                    <div className="text-lg text-brand-3 w-10 h-10 shrink-0 rounded-lg bg-brand-1/40 flex items-center justify-center"><i className={cat?.icon}></i></div>
-                                                                    <div>
+                                                            <div key={record.id} className="p-3 md:p-4 rounded-xl flex items-center justify-between group bg-white border border-brand-1/40 hover:border-brand-3/50 shadow-sm transition-all hover:shadow-md">
+                                                                <div className="flex items-center gap-3 md:gap-4 w-full overflow-hidden">
+                                                                    <div className="text-xl text-brand-3 w-12 h-12 shrink-0 rounded-xl bg-brand-1/20 flex items-center justify-center border border-brand-2/10"><i className={cat?.icon}></i></div>
+                                                                    <div className="flex flex-col min-w-0">
                                                                         <RecordDisplayName record={record} />
-                                                                        <div className="text-xs text-brand-2 mt-1.5 flex flex-wrap gap-2 items-center">
-                                                                            <span>{dateStr}</span>
-                                                                            {record.payer && !record.isPaid && <span className="text-[#A56B5D] flex items-center gap-1"><i className="fa-solid fa-circle text-[6px]"></i>代墊: {record.payer}</span>}
-                                                                            {record.payer && record.isPaid && <span className="text-brand-3 flex items-center gap-1"><i className="fa-solid fa-check text-[8px]"></i>已還: {record.payer}</span>}
-                                                                            {record.memo && <span className="text-brand-4 flex items-center gap-1"><i className="fa-solid fa-quote-left text-[8px]"></i>{record.memo}</span>}
-                                                                            {record.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-[10px]"></i>}
-                                                                            {record.rating === -1 && <i className="fa-solid fa-thumbs-down text-[#A56B5D] text-[10px]"></i>}
+                                                                        <div className="text-[10px] md:text-xs text-brand-2 mt-1.5 flex flex-wrap gap-2 items-center">
+                                                                            <span className="font-medium opacity-80"><i className="fa-regular fa-clock mr-1"></i>{dateStr}</span>
+                                                                            {record.payer && !record.isPaid && <span className="text-[#A56B5D] bg-[#FDF3F3] px-1.5 rounded flex items-center gap-1 font-bold border border-[#E8D1D1]"><i className="fa-solid fa-circle text-[6px]"></i>代墊: {record.payer}</span>}
+                                                                            {record.payer && record.isPaid && <span className="text-brand-3 bg-brand-3/10 px-1.5 rounded flex items-center gap-1 font-bold border border-brand-3/20"><i className="fa-solid fa-check text-[8px]"></i>已還: {record.payer}</span>}
+                                                                            {record.memo && <span className="text-brand-4 flex items-center gap-1 font-medium max-w-[120px] md:max-w-[200px] truncate"><i className="fa-solid fa-quote-left text-[8px] opacity-50"></i>{record.memo}</span>}
+                                                                            {record.rating === 1 && <i className="fa-solid fa-thumbs-up text-brand-3 text-[12px]"></i>}
+                                                                            {record.rating === -1 && <i className="fa-solid fa-thumbs-down text-[#A56B5D] text-[12px]"></i>}
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-1 ml-2">
-                                                                    <span className="font-bold text-brand-5 mr-2">${record.price.toLocaleString()}</span>
-                                                                    <button onClick={() => setEditingRecord(record)} className="text-brand-3 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:bg-brand-1/60 rounded-lg"><i className="fa-solid fa-pen"></i></button>
-                                                                    <button onClick={() => deleteRecord(record.id)} className="text-brand-2 md:opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:text-[#A56B5D] hover:bg-[#FDF3F3] rounded-lg"><i className="fa-solid fa-trash-can"></i></button>
+                                                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                                    <span className="font-black text-brand-5 text-base md:text-lg mr-2">${record.price.toLocaleString()}</span>
+                                                                    <div className="flex md:opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                                                                        <button onClick={() => setEditingRecord(record)} className="text-brand-3 p-2 hover:bg-brand-1/60 rounded-lg transition-colors"><i className="fa-solid fa-pen text-sm"></i></button>
+                                                                        <button onClick={() => deleteRecord(record.id)} className="text-brand-2 p-2 hover:text-[#A56B5D] hover:bg-[#FDF3F3] rounded-lg transition-colors"><i className="fa-solid fa-trash-can text-sm"></i></button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         )
@@ -1784,11 +1746,10 @@
                                 })}
                             </div>
                         </div>
-                    </div>
+                    )}
 
+                    {/* --- Modals (編輯與情報卡) --- */}
                     {editingRecord && (<EditModal record={editingRecord} categories={categories} onClose={() => setEditingRecord(null)} onSave={(updatedRecord) => { updateRecord(updatedRecord); setEditingRecord(null); }} />)}
-
-                    {/* 店家詳細情報卡 Modal */}
                     {selectedShop && (
                         <div className="fixed inset-0 bg-brand-5/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setSelectedShop(null); }}>
                             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-fade-in border border-brand-1/20">
@@ -1796,20 +1757,20 @@
                                     <button onClick={() => setSelectedShop(null)} className="absolute top-4 right-4 w-8 h-8 bg-white rounded-full text-brand-4 hover:text-brand-5 shadow-sm flex items-center justify-center transition-colors"><i className="fa-solid fa-xmark"></i></button>
                                     <h3 className="text-xl font-black text-brand-5 mb-1"><i className="fa-solid fa-store mr-2 text-brand-3"></i>{selectedShop.shopName}</h3>
                                     <div className="flex gap-3 text-xs font-semibold mt-3">
-                                        <span className="bg-brand-1/40 text-brand-5 px-3 py-1.5 rounded-lg border border-brand-2/20">總消費: <span className="text-[#A56B5D]">${selectedShop.total.toLocaleString()}</span></span>
-                                        <span className="bg-brand-1/40 text-brand-5 px-3 py-1.5 rounded-lg border border-brand-2/20">造訪: <span className="text-brand-3">{selectedShop.count} 次</span></span>
+                                        <span className="bg-brand-1/40 text-brand-5 px-3 py-1.5 rounded-lg border border-brand-2/20 shadow-sm">總消費: <span className="text-[#A56B5D]">${selectedShop.total.toLocaleString()}</span></span>
+                                        <span className="bg-brand-1/40 text-brand-5 px-3 py-1.5 rounded-lg border border-brand-2/20 shadow-sm">造訪: <span className="text-brand-3">{selectedShop.count} 次</span></span>
                                     </div>
                                 </div>
-                                <div className="p-6 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                                <div className="p-6 max-h-[50vh] overflow-y-auto custom-scrollbar bg-brand-1/5">
                                     <h4 className="text-[10px] uppercase tracking-widest font-bold text-brand-2 mb-3">品項點擊次數排行榜</h4>
                                     <div className="space-y-2">
                                         {selectedShop.allItems.map(([itemName, count], idx) => (
-                                            <div key={itemName} className="flex justify-between items-center p-3 rounded-xl bg-brand-1/10 border border-brand-1/50">
-                                                <span className="text-sm font-semibold text-brand-5 flex items-center gap-2">
+                                            <div key={itemName} className="flex justify-between items-center p-3 rounded-xl bg-white border border-brand-1/30 shadow-sm">
+                                                <span className="text-sm font-bold text-brand-5 flex items-center gap-2">
                                                     {idx === 0 && count > 1 ? <i className="fa-solid fa-medal text-yellow-500"></i> : <span className="w-4"></span>}
                                                     {itemName}
                                                 </span>
-                                                <span className="text-xs font-bold bg-white text-brand-4 px-2 py-1 rounded shadow-sm">{count} 次</span>
+                                                <span className="text-xs font-black bg-brand-1/20 text-brand-4 px-2 py-1 rounded border border-brand-1/40">{count} 次</span>
                                             </div>
                                         ))}
                                     </div>
@@ -1817,12 +1778,9 @@
                             </div>
                         </div>
                     )}
-
                 </div>
             );
         }
-
-        // --- 4. 設定頁面 (Settings View) ---
 
 
 
