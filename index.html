@@ -1447,8 +1447,8 @@
                 const lastDrinks = records.filter(r => r.date >= lastStart && r.date <= lastEnd && DRINK_CATEGORIES.includes(r.categoryId)).length;
                 if (lastDrinks === 0 && currentDrinks === 0) return null;
                 const diff = currentDrinks - lastDrinks;
-                if (diff > 0) return { text: `手搖飲比上月多喝 ${diff} 杯 🚨`, color: 'text-[#A56B5D]' };
-                if (diff < 0) return { text: `手搖飲比上月少喝 ${Math.abs(diff)} 杯 👏`, color: 'text-brand-3' };
+                if (diff > 0) return { text: `手搖飲比上月多喝 ${diff} 杯 `, color: 'text-[#A56B5D]' };
+                if (diff < 0) return { text: `手搖飲比上月少喝 ${Math.abs(diff)} 杯`, color: 'text-brand-3' };
                 return { text: `手搖飲杯數與上月持平`, color: 'text-brand-4' };
             }, [records, viewMonth, timeScale]);
 
